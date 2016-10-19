@@ -1,0 +1,33 @@
+# depslib dependency file v1.0
+1414104427 source:d:\dev\os\slowos\main.c
+	"Kernel.h"
+	"x86\Init_x86.h"
+
+1414101593 d:\dev\os\slowos\kernel.h
+	<stdint.h>
+	"x86/defines_x86.h"
+	"x86/Log_x86.h"
+
+1414037867 d:\dev\os\slowos\x86\defines_x86.h
+
+1414036632 d:\dev\os\slowos\x86\log_x86.h
+
+1414036288 d:\dev\os\slowos\x86\init_x86.h
+
+1414039951 source:d:\dev\os\slowos\x86\init_x86.c
+	<stdint.h>
+	"..\Kernel.h"
+	"Init_x86.h"
+	"MemoryManager.h"
+
+1414036323 d:\dev\os\slowos\x86\memorymanager.h
+
+1414036645 source:d:\dev\os\slowos\x86\log_x86.c
+	<stdint.h>
+	"Log_x86.h"
+
+1414104916 source:d:\dev\os\slowos\x86\memorymanager_x86.c
+	<stdint.h>
+	"..\Kernel.h"
+	"MemoryManager.h"
+

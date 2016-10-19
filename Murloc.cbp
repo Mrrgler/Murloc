@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="SlowOS" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug Win32">
+				<Option output="SlowOS" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option type="5" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-DX86" />
+				</Compiler>
+				<Linker>
+					<Add option="--oformat=binary" />
+				</Linker>
+			</Target>
+			<Target title="Release Win32">
+				<Option output="SlowOS" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option type="5" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-O2" />
+					<Add option="-Winit-self" />
+					<Add option="-Wredundant-decls" />
+					<Add option="-Winline" />
+					<Add option="-Wunreachable-code" />
+					<Add option="-Wmissing-include-dirs" />
+					<Add option="-pedantic" />
+					<Add option="-masm=intel" />
+					<Add option='-DX86=&quot;1&quot;' />
+					<Add option="-D_MBCS" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="--oformat=binary" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-std=gnu99" />
+			<Add option="-DX86" />
+		</Compiler>
+		<Unit filename="Kernel.h" />
+		<Unit filename="Main.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/Init_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/Init_x86.h" />
+		<Unit filename="x86/Log_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/Log_x86.h" />
+		<Unit filename="x86/MemoryManager.h" />
+		<Unit filename="x86/MemoryManager_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/defines_x86.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

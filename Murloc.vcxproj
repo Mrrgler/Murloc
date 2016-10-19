@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{9DEAE706-CE6F-4DCD-886A-ACE1FF04091F}</ProjectGuid>
+    <RootNamespace>Murloc</RootNamespace>
+    <ProjectName>Murloc</ProjectName>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>LLVM-vs2014</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <TargetExt>.bin</TargetExt>
+    <GenerateManifest>false</GenerateManifest>
+    <EmbedManifest>false</EmbedManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <TargetExt>.bin</TargetExt>
+    <GenerateManifest>false</GenerateManifest>
+    <EmbedManifest>false</EmbedManifest>
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Full</Optimization>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <OmitFramePointers>true</OmitFramePointers>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
+      <PreprocessorDefinitions>_MBCS; X86;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <EnableUAC>false</EnableUAC>
+      <SubSystem>Native</SubSystem>
+      <EntryPointSymbol>main</EntryPointSymbol>
+      <BaseAddress>0xfe000000</BaseAddress>
+      <FixedBaseAddress>true</FixedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <Profile>false</Profile>
+      <CLRUnmanagedCodeCheck>false</CLRUnmanagedCodeCheck>
+      <SectionAlignment>
+      </SectionAlignment>
+      <Driver>NotSet</Driver>
+      <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);X86</PreprocessorDefinitions>
+      <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>$(SolutionDir)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <EnableUAC>false</EnableUAC>
+      <SubSystem>Native</SubSystem>
+      <EntryPointSymbol>main</EntryPointSymbol>
+      <BaseAddress>0xfe000000</BaseAddress>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <FixedBaseAddress>true</FixedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <CLRUnmanagedCodeCheck>false</CLRUnmanagedCodeCheck>
+      <MergeSections>.rdata=.data</MergeSections>
+      <AdditionalOptions>/IGNORE:4254 %(AdditionalOptions)</AdditionalOptions>
+      <FunctionOrder>funcorder.txt</FunctionOrder>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy /Y .\Release\SlowOS.bin .\Release\SlowOS_pe.bin
+objcopy --change-section-address .text-0x1000 ./Release/SlowOS.bin -I pe-i386 -O binary
+copy /Y .\Release\SlowOS.bin ..\kernel.bin
+fasm ..\bootloader.asm ..\bootloader.bin
+fasm ..\mbr.asm ..\mbr.bin
+copy /Y ..\mbr.bin ..\mbr.img</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Arch\x86\Init_x86.c" />
+    <ClCompile Include="Common\kmalloc.c" />
+    <ClCompile Include="Main.c" />
+    <ClCompile Include="MemoryManager\KernelVAAlloc.c" />
+    <ClCompile Include="MemoryManager\MemoryManager.c" />
+    <ClCompile Include="MemoryManager\x86\KernelVA_x86.c" />
+    <ClCompile Include="MemoryManager\x86\MemoryManager_x86.c" />
+    <ClCompile Include="Util\kstring.c" />
+    <ClCompile Include="x86\Interrupt.c" />
+    <ClCompile Include="x86\kmalloc_x86.c" />
+    <ClCompile Include="x86\Log_x86.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Arch\x86\Init_x86.h" />
+    <ClInclude Include="Common\kmalloc.h" />
+    <ClInclude Include="ElfLoader\Elf32_Headers.h" />
+    <ClInclude Include="Kernel.h" />
+    <ClInclude Include="MemoryManager\MemoryManager.h" />
+    <ClInclude Include="MemoryManager\x86\MemoryManager_x86.h" />
+    <ClInclude Include="Util\kstring.h" />
+    <ClInclude Include="x86\defines_x86.h" />
+    <ClInclude Include="x86\IDT_and_Handlers_x86.h" />
+    <ClInclude Include="x86\Interrupt.h" />
+    <ClInclude Include="x86\Log_x86.h" />
+    <ClInclude Include="x86\post_defines_x86.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

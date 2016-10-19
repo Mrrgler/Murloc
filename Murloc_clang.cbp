@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Murloc" />
+		<Option pch_mode="2" />
+		<Option compiler="clang" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Murloc" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="bin/obj/Debug/" />
+				<Option type="5" />
+				<Option compiler="clang" />
+				<Compiler>
+					<Add option="-fms-extensions" />
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Murloc" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="bin/obj/Release/" />
+				<Option type="5" />
+				<Option compiler="clang" />
+				<Compiler>
+					<Add option="-fomit-frame-pointer" />
+					<Add option="-O3" />
+				</Compiler>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-fms-extensions" />
+			<Add option="-Wall" />
+			<Add option="-m32 -nostdlib -ffreestanding -Wno-missing-braces -masm=intel" />
+			<Add option="-DX86" />
+		</Compiler>
+		<Linker>
+			<Add option="-s" />
+			<Add option="--oformat binary -T kernel.ld -melf_i386 -M -Map kernel.map" />
+		</Linker>
+		<ExtraCommands>
+			<Add after="bin/MurlocBuilder kernel.map" />
+			<Mode after="always" />
+		</ExtraCommands>
+		<Unit filename="Common/kmalloc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Common/kmalloc.h" />
+		<Unit filename="Kernel.h" />
+		<Unit filename="Main.c">
+			<Option compilerVar="CC" />
+			<Option link="0" />
+		</Unit>
+		<Unit filename="MemoryManager/KernelVAAlloc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/MemoryManager.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/MemoryManager.h" />
+		<Unit filename="MemoryManager/x86/KernelVA_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/x86/MemoryManager_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/x86/MemoryManager_x86.h" />
+		<Unit filename="Util/kstring.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="Util/kstring.h" />
+		<Unit filename="x86/Init_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/Init_x86.h" />
+		<Unit filename="x86/Interrupt.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/Interrupt.h" />
+		<Unit filename="x86/Log_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/Log_x86.h" />
+		<Unit filename="x86/SysCall_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/defines_x86.h" />
+		<Unit filename="x86/kmalloc_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

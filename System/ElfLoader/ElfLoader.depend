@@ -1,0 +1,34 @@
+# depslib dependency file v1.0
+1455478729 source:/media/sf_OS/Murloc/ElfLoader/Main.c
+	<stdint.h>
+	<stdbool.h>
+	"Elf32_Headers.h"
+	"../Kernel.h"
+
+1454613273 /media/sf_OS/Murloc/ElfLoader/Elf32_Headers.h
+
+1456847310 /media/sf_OS/Murloc/Kernel.h
+	<stdint.h>
+	<stdbool.h>
+	"x86/defines_x86.h"
+	"x86/Log_x86.h"
+
+1456737138 /media/sf_OS/Murloc/x86/defines_x86.h
+
+1453050492 /media/sf_OS/Murloc/x86/Log_x86.h
+
+1453810233 /media/sf_OS/Murloc/Util/kstring.h
+
+1453810238 source:/media/sf_OS/Murloc/Util/kstring.c
+	<stdint.h>
+	"../Kernel.h"
+	"kstring.h"
+
+1455538725 source:/media/sf_OS/Murloc/System/ElfLoader/Main.c
+	<stdint.h>
+	<stdbool.h>
+	"Elf32_Headers.h"
+	"../../Kernel.h"
+
+1454613273 /media/sf_OS/Murloc/System/ElfLoader/Elf32_Headers.h
+

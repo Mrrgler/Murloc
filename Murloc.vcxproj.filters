@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Common">
+      <UniqueIdentifier>{4a5376a4-86c8-40ed-855a-e7c90e50c0f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util">
+      <UniqueIdentifier>{ada206c2-09eb-4c24-a9e2-377e8436f7ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\MemoryManager">
+      <UniqueIdentifier>{dc7374bd-050f-403a-9d3b-abbc0647d76a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\MemoryManager\x86">
+      <UniqueIdentifier>{bbc93685-7232-422e-bd0c-aae547a9db2e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\MemoryManager">
+      <UniqueIdentifier>{4d9877ef-021c-4431-9846-aa09da4325fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Arch">
+      <UniqueIdentifier>{2e2382bc-22dd-4308-840a-1485d5e84351}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Arch\x86">
+      <UniqueIdentifier>{741e1b78-0cd8-4949-9627-92ea4459d10d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="x86\kmalloc_x86.c">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="x86\Log_x86.c">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\kstring.c">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\kmalloc.c">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="x86\Interrupt.c">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\x86\KernelVA_x86.c">
+      <Filter>Source Files\MemoryManager\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\KernelVAAlloc.c">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\x86\MemoryManager_x86.c">
+      <Filter>Source Files\MemoryManager\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\MemoryManager.c">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClCompile>
+    <ClCompile Include="Arch\x86\Init_x86.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Kernel.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\Log_x86.h">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\defines_x86.h">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\kstring.h">
+      <Filter>Source Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\kmalloc.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\Interrupt.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\IDT_and_Handlers_x86.h">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\post_defines_x86.h">
+      <Filter>Source Files\Arch\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="ElfLoader\Elf32_Headers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryManager\MemoryManager.h">
+      <Filter>Header Files\MemoryManager</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryManager\x86\MemoryManager_x86.h">
+      <Filter>Source Files\MemoryManager\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="Arch\x86\Init_x86.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,19 @@
+# depslib dependency file v1.0
+1455535862 source:/media/sf_OS/Murloc/fs_driver/Main.c
+	<stdint.h>
+	"../Kernel.h"
+
+1456847310 /media/sf_OS/Murloc/Kernel.h
+	<stdint.h>
+	<stdbool.h>
+	"x86/defines_x86.h"
+	"x86/Log_x86.h"
+
+1456737138 /media/sf_OS/Murloc/x86/defines_x86.h
+
+1453050492 /media/sf_OS/Murloc/x86/Log_x86.h
+
+1455538727 source:/media/sf_OS/Murloc/System/fs_driver/Main.c
+	<stdint.h>
+	"../../Kernel.h"
+

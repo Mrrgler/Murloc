@@ -1,0 +1,7 @@
+# depslib dependency file v1.0
+1453565201 source:/media/sf_OS/Murloc/MurlocBuilder/main.c
+	<stdint.h>
+	<stdlib.h>
+	<stdio.h>
+	<string.h>
+
