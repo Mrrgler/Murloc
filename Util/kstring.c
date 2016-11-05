@@ -11,6 +11,21 @@ void* memcpy(void* pDst, const void* pSrc, size_t size)
 	return pDst;
 }
 
+void* memmove(void* pDst, const void* pSrc, size_t size)
+{
+	if(pDst <= pSrc){
+		for(uint32_t i = 0; i < size; i++){
+			((uint8_t*)pDst)[i] = ((uint8_t*)pSrc)[i];
+		}
+	}else{
+		for(uint32_t i = size; i > 0; i--){
+			((uint8_t*)pDst)[i - 1] = ((uint8_t*)pSrc)[i - 1];
+		}
+	}
+
+	return pDst;
+}
+
 //#pragma function(memset)
 void* memset(void* pBuf, uint8_t value, addr_t size){
 	for(addr_t i = 0; i < size; i++){

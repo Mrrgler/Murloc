@@ -1,10 +1,12 @@
+#pragma once
 #include <stdint.h>
+#include <stdbool.h>
+#include <stdatomic.h>
 
 #define KERNEL_DEBUG
 
 #if defined(X86)
 //#include <intrin.h>
-#include <stdbool.h>
 #include "x86/defines_x86.h"
 #include "x86/Log_x86.h"
 
@@ -26,13 +28,29 @@
 #endif
 
 typedef uint32_t addr_t;
+
+#ifndef NULL
 #define NULL 0
+#endif
 
 enum KERNEL_ERROR_CODES{
 	KERNEL_OK,
 	KERNEL_ERROR_ALREADY_MAPPED,
 	KERNEL_NOT_ENOUGH_MEMORY,
 	KERNEL_ERROR = -1
+};
+
+enum KERNEL_SUBSYSTEM_ERROR_CODES{
+	KERNEL_SUBSYS_MAIN = 0,
+	KERNEL_SUBSYS_MEMORY,
+	KERNEL_SUBSYS_INTERRUPTS,
+};
+
+struct kernel_core{
+// platform independent
+
+// platform depended
+	volatile uint32_t* pAPICBase;
 };
 /*
 #ifndef KINTRIN
@@ -49,6 +67,8 @@ extern "C" void* __cdecl memset(void* pBuf, uint8_t value, addr_t size);
 
 #define FILL_BITS(x)\
 	((1 << (x)) - 1)
+
+#define ALIGN_UP_TO_PAGE(x) (ALIGN_TO_UP(x, KERNEL_PAGE_SIZE_X86))
 
 #define SIZE_IN_PAGES(x)\
 	(ALIGN_TO_UP(x, KERNEL_PAGE_SIZE_X86) / KERNEL_PAGE_SIZE_X86)

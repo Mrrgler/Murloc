@@ -114,6 +114,18 @@ enum SysErrors{
 
 };
 
+void* kmalloc(uint32_t size){
+	LogDebug("kmalloc not implemented!");
+
+	return NULL;
+}
+
+void kfree(void* pMem)
+{
+	LogDebug("kfree not implemented!");
+
+}
+
 /* addr_t addr, uint32_t num, uint32_t flags, uint32_t* pError
 	if addr == NULL, acting like nix mmap
 

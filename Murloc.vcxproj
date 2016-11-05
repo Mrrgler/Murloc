@@ -141,7 +141,6 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Arch\x86\Init_x86.c" />
     <ClCompile Include="Common\kmalloc.c" />
     <ClCompile Include="Main.c" />
     <ClCompile Include="MemoryManager\KernelVAAlloc.c" />
@@ -149,9 +148,13 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
     <ClCompile Include="MemoryManager\x86\KernelVA_x86.c" />
     <ClCompile Include="MemoryManager\x86\MemoryManager_x86.c" />
     <ClCompile Include="Util\kstring.c" />
+    <ClCompile Include="Util\mrgl_sizelist.c" />
+    <ClCompile Include="Util\mrgl_trees.c" />
+    <ClCompile Include="x86\Init_x86.c" />
     <ClCompile Include="x86\Interrupt.c" />
     <ClCompile Include="x86\kmalloc_x86.c" />
     <ClCompile Include="x86\Log_x86.c" />
+    <ClCompile Include="x86\SysCall_x86.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Arch\x86\Init_x86.h" />
@@ -161,8 +164,11 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
     <ClInclude Include="MemoryManager\MemoryManager.h" />
     <ClInclude Include="MemoryManager\x86\MemoryManager_x86.h" />
     <ClInclude Include="Util\kstring.h" />
+    <ClInclude Include="Util\mrgl_sizelist.h" />
+    <ClInclude Include="Util\mrgl_trees.h" />
     <ClInclude Include="x86\defines_x86.h" />
     <ClInclude Include="x86\IDT_and_Handlers_x86.h" />
+    <ClInclude Include="x86\Init_x86.h" />
     <ClInclude Include="x86\Interrupt.h" />
     <ClInclude Include="x86\Log_x86.h" />
     <ClInclude Include="x86\post_defines_x86.h" />

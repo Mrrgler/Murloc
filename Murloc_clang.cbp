@@ -34,6 +34,7 @@
 			<Add option="-Wall" />
 			<Add option="-m32 -nostdlib -ffreestanding -Wno-missing-braces -masm=intel" />
 			<Add option="-DX86" />
+			<Add directory="/media/sf_OS/Murloc/" />
 		</Compiler>
 		<Linker>
 			<Add option="-s" />
@@ -43,10 +44,6 @@
 			<Add after="bin/MurlocBuilder kernel.map" />
 			<Mode after="always" />
 		</ExtraCommands>
-		<Unit filename="Common/kmalloc.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Unit filename="Common/kmalloc.h" />
 		<Unit filename="Kernel.h" />
 		<Unit filename="Main.c">
 			<Option compilerVar="CC" />
@@ -59,6 +56,20 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="MemoryManager/MemoryManager.h" />
+		<Unit filename="MemoryManager/mrgl_alloc.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/mrgl_alloc.h" />
+		<Unit filename="MemoryManager/mrgl_alloc_config.h" />
+		<Unit filename="MemoryManager/mrgl_sizelist.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/mrgl_sizelist.h" />
+		<Unit filename="MemoryManager/mrgl_tinyfin_alloc.h" />
+		<Unit filename="MemoryManager/mrgl_trees.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="MemoryManager/mrgl_trees.h" />
 		<Unit filename="MemoryManager/x86/KernelVA_x86.c">
 			<Option compilerVar="CC" />
 		</Unit>

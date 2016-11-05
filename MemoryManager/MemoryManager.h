@@ -1,17 +1,28 @@
 #pragma once
 
+enum MemoryManagerSubSystems{
+	KERNEL_MEMORY_MAIN = 0,
+	KERNEL_MEMORY_VA_ALLOC,
+};
+
+#define MAKE_MEMORY_MANAGER_ERROR_CODE(subsystem, x) ((KERNEL_SUBSYS_MEMORY << 24) | (subsystem << 16) | (x))
 
 struct GlobalMemoryPoolHeader{
 	uint32_t size;
 	uint32_t free_pages;
 	//uint32_t* pTop;
-	uint32_t lock_flag;
+	atomic_flag lock_flag;
 	uint32_t* pBegin;
 	addr_t pPhysBegin;
 };
 
 
 uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize);
+// Kernel VA Allocator
+void KernelVAAllocInit(void);
+addr_t KernelVAAlloc(uint32_t pages_num);
+uint32_t KernelVAFree(addr_t addr, uint32_t pages_num);
+// Kernel paging functions
 uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t** ppPTE);
 uint32_t TranslateMappingFlags(uint32_t flags);
 void MapPhysMemToKernelVirtualCont(addr_t phys_addr, uint32_t pages_num, addr_t virtual_addr, uint32_t flags);
@@ -22,6 +33,8 @@ addr_t GetKernelPhysAddr(addr_t virtual_addr);
 void CopyKernelASToProcess(uint32_t* pPDE);
 uint32_t AllocPagesGlobal(uint32_t* pBuf, uint32_t num);
 uint32_t FreePagesGlobal(uint32_t* pBuf, uint32_t num);
+void* kmmap(uint32_t pages_num);
+void kmunmap(void* pMem, uint32_t pages_num);
 
 
 

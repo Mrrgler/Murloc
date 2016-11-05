@@ -1,6 +1,5 @@
 #include <Kernel.h>
 #include <Util/kstring.h>
-#include <Common/kmalloc.h>
 #include <MemoryManager/MemoryManager.h>
 #include "MemoryManager_x86.h"
 #include <x86/post_defines_x86.h>
@@ -11,7 +10,7 @@
 #endif
 
 extern struct GlobalMemoryPoolHeader GlobalMemoryPool;
-
+extern atomic_flag kernel_va_map_lock_flag;
 
 #pragma pack(push, 8) // 8 byte align
 static struct SegmentDescriptor pGDT[] = {
@@ -64,6 +63,8 @@ addr_t KVAddrSpaceTop = KERNEL_BASE_X86 + KERNEL_SIZE_X86 + KERNEL_STACK_SIZE_X8
 	+ pool size						- global allocator pool
 */
 
+extern struct kernel_core Core;
+
 int MemTableInit(struct E820MemInfo* pInfo, uint32_t InfoSize)
 {
 	uint32_t UsablePages = 0;
@@ -71,11 +72,12 @@ int MemTableInit(struct E820MemInfo* pInfo, uint32_t InfoSize)
 	// count all usable regions
 	for(uint32_t i = 0; i < InfoSize; i++){
 		// if usable
+		LogDebug("E820 Memory %00u: %08x - %08x, type: %00u", i, (uint32_t)pInfo[i].base, (uint32_t)(pInfo[i].base + pInfo[i].size), pInfo[i].type);
 		if(pInfo[i].type == 0x01){ // TODO: ACPI 3.0 flags check
 			// is this region with kernel?
-			if(pInfo[i].base <= KERNEL_BASE_X86 && (pInfo[i].base + pInfo[i].size) >= KERNEL_BASE_X86){ // this is kinda unclear
-				// this is region with kernel
-				pInfo[i].base = KERNEL_VA_TOP_BASE;
+			if(pInfo[i].base <= KERNEL_PHYS_BASE_X86 && (pInfo[i].base + pInfo[i].size) >= KERNEL_PHYS_BASE_X86){ // this is kinda unclear
+				// this is region with kernel, resize it to count used memory by init ram image
+				pInfo[i].base = KERNEL_PHYS_BASE_X86 + KERNEL_INIT_RAM_IMAGE_SIZE;
 				pInfo[i].size = pInfo[i].size - (KERNEL_VA_TOP_BASE - KERNEL_BASE_X86);
 			}
 			// align regions by page size
@@ -104,20 +106,25 @@ int MemTableInit(struct E820MemInfo* pInfo, uint32_t InfoSize)
 				GlobalMemoryPool.free_pages = 0;
 				GlobalMemoryPool.size = UsablePages;
 
-				pInfo[i].base = pInfo[i].base + ALIGN_TO_UP(sizeof(addr_t) * UsablePages, KERNEL_PAGE_SIZE_X86);
-				pInfo[i].size = pInfo[i].size - ALIGN_TO_UP(sizeof(addr_t) * UsablePages, KERNEL_PAGE_SIZE_X86);
+				pInfo[i].base = pInfo[i].base + ALIGN_UP_TO_PAGE(sizeof(addr_t) * UsablePages);
+				pInfo[i].size = pInfo[i].size - ALIGN_UP_TO_PAGE(sizeof(addr_t) * UsablePages);
 				break;
 			}
 		}
 	}
-	LogDebug("Mapping pool");
-
-	// map pool to kernel virtual address space
+	//LogDebug("Mapping pool");
+	// alloc virtual memory for pool
 	uint32_t PoolSizeInPages = SIZE_IN_PAGES(sizeof(uint32_t*) * GlobalMemoryPool.size);
-	MemoryMap.GlobalPagesPool = KERNEL_MEMORY_POOL_BASE;
+
+	MemoryMap.GlobalPagesPool = KernelVAAlloc(PoolSizeInPages);
+	if(MemoryMap.GlobalPagesPool == NULL){
+		return KERNEL_ERROR;
+	}
+	
 	MemoryMap.GlobalPagesPoolSize = PoolSizeInPages * KERNEL_PAGE_SIZE_X86;
 	GlobalMemoryPool.pBegin = (uint32_t*)MemoryMap.GlobalPagesPool;
-
+	LogDebug("Found place for page pool: 0x%08x, size: %00u, mapped to: 0x%08x", GlobalMemoryPool.pPhysBegin, ALIGN_UP_TO_PAGE(sizeof(addr_t) * UsablePages), GlobalMemoryPool.pBegin);
+	// map pool to kernel virtual address space
 	MapPhysMemToKernelVirtualCont(GlobalMemoryPool.pPhysBegin, PoolSizeInPages, (addr_t)GlobalMemoryPool.pBegin, KERNEL_PAGE_SUPERVISOR_X86 | KERNEL_PAGE_READWRITE);
 
 	LogDebug("Filling pool");
@@ -131,6 +138,8 @@ int MemTableInit(struct E820MemInfo* pInfo, uint32_t InfoSize)
 			}
 		}
 	}
+	// set initial state of lock_flag to false
+	atomic_flag_clear(&GlobalMemoryPool.lock_flag);
 
 	if(GlobalMemoryPool.size == 0){
 		return KERNEL_ERROR;
@@ -202,16 +211,16 @@ uint32_t MapPagesToPTEs(addr_t virtual_addr, uint32_t pages_num, uint32_t flags,
 {
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
 	// lock global pages pool
-	while(__sync_bool_compare_and_swap(&GlobalMemoryPool.lock_flag, 0, 1) == false){
-
+	while(atomic_flag_test_and_set(&GlobalMemoryPool.lock_flag) == true){
+		// wait
 	}
-//	map_lock = 1;
+//	kernel_va_map_lock_flag = 1;
 	// check if we have enough pages
 	if(pages_num > GlobalMemoryPool.free_pages){
 		// not enough memory
 		// release locks
-		GlobalMemoryPool.lock_flag = 0;
-	//	map_lock = 0;
+		atomic_flag_clear(&GlobalMemoryPool.lock_flag);
+	//	kernel_va_map_lock_flag = 0;
 		return KERNEL_NOT_ENOUGH_MEMORY;
 	}
 	// fill kernel pte
@@ -222,16 +231,16 @@ uint32_t MapPagesToPTEs(addr_t virtual_addr, uint32_t pages_num, uint32_t flags,
 		if(ppPTE[addr >> 22][(addr >> 12) & 0x3ff] != 0){
 			GlobalMemoryPool.free_pages = GlobalMemoryPool.free_pages - i;
 			// release locks
-			GlobalMemoryPool.lock_flag = 0;
-		//	map_lock = 0;
+			atomic_flag_clear(&GlobalMemoryPool.lock_flag);
+		//	kernel_va_map_lock_flag = 0;
 			return KERNEL_ERROR_ALREADY_MAPPED;
 		}
 		ppPTE[addr >> 22][(addr >> 12) & 0x3ff] = (p_addr & 0xfffff000) | flags;
 	}
 	GlobalMemoryPool.free_pages = GlobalMemoryPool.free_pages - pages_num;
 	// release locks
-	GlobalMemoryPool.lock_flag = 0;
-//	map_lock = 0;
+	atomic_flag_clear(&GlobalMemoryPool.lock_flag);
+//	kernel_va_map_lock_flag = 0;
 
 	return KERNEL_OK;
 }
@@ -244,8 +253,9 @@ uint32_t MapPagesToPTEs(addr_t virtual_addr, uint32_t pages_num, uint32_t flags,
 uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t* pPDE, uint32_t** ppPTE)
 {
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
+	LogDebug("MapPagesToProcessVirtual not implemented!");
 	LogDebug("MapPagesToProcessVirtual addr: 0x%08x, pages_num: %00u, flags: 0x%04x", virtual_addr, pages_num, flags);
-	// count PTE and check if we need allocate additional ptes
+	/*// count PTE and check if we need allocate additional ptes
 	addr_t pte_start = ALIGN_TO_DOWN(virtual_addr, KERNEL_PTE_VA_SIZE_X86);
 	addr_t pte_end	 = ALIGN_TO_UP(virtual_addr + KERNEL_PAGE_SIZE_X86 * pages_num, KERNEL_PTE_VA_SIZE_X86);
 	uint32_t pte_offset = pte_start / KERNEL_PTE_VA_SIZE_X86;
@@ -259,7 +269,7 @@ uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint3
 			memset(ppPTE[pte_offset + i], 0, KERNEL_PAGE_SIZE_X86);
 			pPDE[pte_offset + i] = GetKernelPhysAddr((addr_t)&ppPTE[pte_offset + i][0]) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
 		}
-	}
+	}*/
 	// map pages into the pte's
 	return MapPagesToPTEs(virtual_addr, pages_num, flags, ppPTE);
 }
@@ -277,44 +287,6 @@ void MapPhysMemToVirtual(uint32_t* pPhysAddr, uint32_t pages_num, addr_t virtual
 		pPTE[virtual_addr >> 22][(virtual_addr >> 12) & 0x3ff] = (pPhysAddr[i] & 0xfffff000) | flags;
 		virtual_addr = virtual_addr + KERNEL_PAGE_SIZE_X86;
 	}
-}
-
-// used by kmalloc
-void* ksbrk(int32_t increment)
-{
-	static addr_t size_in_bytes = 0;
-	uint32_t old_size = size_in_bytes;
-	
-	if(increment > 0){
-		// alloc pages
-		LogDebug("ksbrk pool addr: 0x%08x, pool size: 0x%08x, increment by: 0x%08x", MemoryMap.GlobalAllocatorPool, size_in_bytes, (uint32_t)increment);
-		size_in_bytes = size_in_bytes + increment;
-		// i'm not sure, looks like dlmalloc could call sbrk with non page-sized allocations, it only says that deallocations always page sized
-		if(size_in_bytes > MemoryMap.GlobalAllocatorPoolSize){
-			// we need allocate and map some pages
-			uint32_t pages_num = SIZE_IN_PAGES(size_in_bytes - ALIGN_TO_UP(old_size, KERNEL_PAGE_SIZE_X86));
-			addr_t virtual_addr = MemoryMap.GlobalAllocatorPool + ALIGN_TO_UP(old_size, KERNEL_PAGE_SIZE_X86);
-			// alloc and map pages
-			MapPagesToKernelVirtual(virtual_addr, pages_num, KERNEL_PAGE_KERNEL_DATA);
-			//memset((void*)virtual_addr, 0, pages_num * KERNEL_PAGE_SIZE_X86);
-			MemoryMap.GlobalAllocatorPoolSize = ALIGN_TO_UP(size_in_bytes, KERNEL_PAGE_SIZE_X86);
-		}
-		
-		return (void*)(MemoryMap.GlobalAllocatorPool + old_size);
-	}else if(increment < 0){
-		// free pages, dlmalloc says negative increment always page sized
-		LogDebug("ksbrk pool addr: 0x%08x decrement by: 0x%08x", MemoryMap.GlobalAllocatorPool, (uint32_t)increment);
-		uint32_t pages_num = -increment / KERNEL_PAGE_SIZE_X86;
-		addr_t virtual_addr = MemoryMap.GlobalAllocatorPool + MemoryMap.GlobalAllocatorPoolSize + increment;
-		__asm hlt;
-		size_in_bytes = size_in_bytes + increment; // increment is negative
-		// free and unmap per page
-		UnMapPagesFromKernelVirtual(virtual_addr, pages_num);
-		MemoryMap.GlobalAllocatorPoolSize = MemoryMap.GlobalAllocatorPoolSize + increment; // increment is negative
-		return (void*)(MemoryMap.GlobalAllocatorPool + old_size);
-	}
-	LogDebug("ksbrk pool addr: 0x%08x, zero increment", MemoryMap.GlobalAllocatorPool);
-	return (void*)(MemoryMap.GlobalAllocatorPool + size_in_bytes);
 }
 
 void ProbeAndEnableSMEP()
@@ -372,9 +344,10 @@ uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize)
 	for(uint32_t i = 0; i < 8; i++){ // one iteration - one page table entry, 1024 pages of 4Kb, 4Mb in total
 		KPDE[1024 - 8 + i] = (((addr_t)&KPTE[i] - KERNEL_BASE_X86 + KERNEL_PHYS_BASE_X86) & 0xfffff000) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
 	}
-	
-	LogDebug("Mapping kernel");
+	// set kernel_va_map_lock_flag to initial state to false
+	atomic_flag_clear(&kernel_va_map_lock_flag);
 	// map physical pages with kernel and stuff to kernel part (upper 32Mb) of virtual address space
+	LogDebug("Mapping kernel");
 	//MapPhysMemToVirtual(&addr, 1, KERNEL_BASE_X86 + i * KERNEL_PAGE_SIZE_X86, KPDE, pKPTE, KERNEL_PAGE_SUPERVISOR_X86, KERNEL_PAGE_READWRITE);
 	// we can't use this function since it uses kernel virtual address space structures, which we should build now
 	// map code section read-only and execute allowed
@@ -385,9 +358,9 @@ uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize)
 	uint32_t pages_num = SIZE_IN_PAGES(KERNEL_BSS_SECTION_BEGIN - KERNEL_DATA_SECTION_BEGIN) + SIZE_IN_PAGES(KERNEL_BSS_SECTION_SIZE) + SIZE_IN_PAGES(KERNEL_STACK_SIZE_X86);
 	MapPhysMemToKernelVirtualCont(KERNEL_PHYS_BASE_X86 + (KERNEL_DATA_SECTION_BEGIN - KERNEL_BASE_X86), pages_num, KERNEL_DATA_SECTION_BEGIN, KERNEL_PAGE_KERNEL_DATA);
 	// map elf loader
-	MapPhysMemToKernelVirtualCont(KERNEL_PHYS_BASE_X86 + (KERNEL_ELF_LOADER_BASE - KERNEL_BASE_X86), SIZE_IN_PAGES(KERNEL_ELF_LOADER_SIZE_X86), KERNEL_ELF_LOADER_BASE, KERNEL_PAGE_USER_CODE);
+	MapPhysMemToKernelVirtualCont(KERNEL_ELF_LOADER_PHYS_BASE, SIZE_IN_PAGES(KERNEL_ELF_LOADER_SIZE_X86), KERNEL_ELF_LOADER_BASE, KERNEL_PAGE_USER_CODE);
 	// map fs driver
-	MapPhysMemToKernelVirtualCont(KERNEL_PHYS_BASE_X86 + (KERNEL_FS_DRIVER_BASE - KERNEL_BASE_X86), SIZE_IN_PAGES(KERNEL_FS_DRIVER_SIZE_X86), KERNEL_FS_DRIVER_BASE, KERNEL_PAGE_USER_DATA);
+	MapPhysMemToKernelVirtualCont(KERNEL_FS_DRIVER_PHYS_BASE, SIZE_IN_PAGES(KERNEL_FS_DRIVER_SIZE_X86), KERNEL_FS_DRIVER_BASE, KERNEL_PAGE_USER_DATA);
 	// remap vga memory
 	MapPhysMemToKernelVirtualCont(VGA_MEMORY_BASE_PHYS_X86, SIZE_IN_PAGES(VGA_MEMORY_SIZE_X86), VGA_MEMORY_BASE_X86, KERNEL_PAGE_KERNEL_DATA | KERNEL_PAGE_WRITETHROUGH);
 
@@ -400,18 +373,21 @@ uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize)
 	//MemoryMap.VgaMemorySize = VGA_MEMORY_SIZE_X86;
 	pVideo = (uint8_t*)(VGA_MEMORY_BASE_X86 + vga_offset);
 
-	LogDebug("Init pages pool");
+	// init kernel VA allocator
+	LogDebug("Init Kernel Virtual Address Space Allocator");
+	KernelVAAllocInit();
 	// init pages pool
+	LogDebug("Init pages pool");
 	if(MemTableInit(pE820Info, InfoSize) != KERNEL_OK){
 		return KERNEL_ERROR;
 	}
-    LogDebug("Init kmalloc");
 	// init kernel allocator
+	LogDebug("Init kmalloc");
 	MemoryMap.GlobalAllocatorPool = MemoryMap.GlobalPagesPool + MemoryMap.GlobalPagesPoolSize;
 	MemoryMap.GlobalAllocatorPoolSize = 0;
 
 	LogDebug("VGA memory base: 0x%08x", VGA_MEMORY_BASE_X86);
-	LogDebug("APIC registers base: 0x%08x", APIC_REGISTERS_BASE_X86);
+	
 
 	// init tss
 	memset(&TSS, 0, sizeof(TSS));
@@ -425,7 +401,7 @@ uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize)
 	// load tss into task segment register
 	asm("ltr %0" : : "r" ((uint16_t)(SEGMENT_TSS << 3)));
 
-	LogDebug("0x%08x 0x%08x 0x%08x 0x%08x", kmemalign(4096, 4096), kmemalign(4096, 4096), kmemalign(4096, 4096), kmemalign(4096, 4096));
+	//LogDebug("0x%08x 0x%08x 0x%08x 0x%08x", kmemalign(4096, 4096), kmemalign(4096, 4096), kmemalign(4096, 4096), kmemalign(4096, 4096));
 
 	return KERNEL_OK;
 }

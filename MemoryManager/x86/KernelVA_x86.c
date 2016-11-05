@@ -1,6 +1,5 @@
 #include <Kernel.h>
 #include <Util/kstring.h>
-#include <Common/kmalloc.h>
 #include <MemoryManager/MemoryManager.h>
 #include "MemoryManager_x86.h"
 #include <x86/post_defines_x86.h>
@@ -9,7 +8,7 @@
 extern uint32_t KPDE[1024] __attribute__((aligned(KERNEL_PAGE_SIZE_X86)));		// kernel Page Directory Entries table
 extern uint32_t KPTE[8][1024] __attribute__((aligned(KERNEL_PAGE_SIZE_X86)));	// 8 Page Table Entries using to map upper 32Mb of 32Bit address space
 
-static volatile uint32_t map_lock = 0;
+atomic_flag kernel_va_map_lock_flag = ATOMIC_FLAG_INIT;
 
 addr_t GetKernelPhysAddr(addr_t virtual_addr)
 {
@@ -25,8 +24,8 @@ void MapPhysMemToKernelVirtualCont(addr_t phys_addr, uint32_t pages_num, addr_t 
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
 	//LogDebug("Mapping 0x%08x to 0x%08x physical, for %00u pages.", virtual_addr, phys_addr, pages_num);
 	// lock kernel virtual address space flag
-	while(__sync_bool_compare_and_swap(&map_lock, 0, 1) == false){
-
+	while(atomic_flag_test_and_set(&kernel_va_map_lock_flag) == true){
+		// wait
 	}
 
 	// fill kernel pte
@@ -37,7 +36,7 @@ void MapPhysMemToKernelVirtualCont(addr_t phys_addr, uint32_t pages_num, addr_t 
 		KPTE[addr >> 22][(addr >> 12) & 0x3ff] = (p_addr & 0xfffff000) | flags;
 	}
 	// release locks
-	map_lock = 0;
+	atomic_flag_clear(&kernel_va_map_lock_flag);
 }
 
 // map pages directly from global pool
@@ -46,16 +45,19 @@ uint32_t MapPagesToKernelVirtual(addr_t virtual_addr, uint32_t pages_num, uint32
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
 	LogDebug("MapPagesToKernelVirtual addr: 0x%08x, pages_num: %00u, flags: 0x%04x", virtual_addr, pages_num, flags);
 	// lock global pages pool
-	while(__sync_bool_compare_and_swap(&GlobalMemoryPool.lock_flag, 0, 1) == false){
-
+	while(atomic_flag_test_and_set(&GlobalMemoryPool.lock_flag) == true){
+		// wait
 	}
-	map_lock = 1;
+	// lock kernel VA
+	while(atomic_flag_test_and_set(&kernel_va_map_lock_flag) == true){
+		// wait
+	}
 	// check if we have enough pages
 	if(pages_num > GlobalMemoryPool.free_pages){
 		// not enough memory
 		// release locks
-		GlobalMemoryPool.lock_flag = 0;
-		map_lock = 0;
+		atomic_flag_clear(&kernel_va_map_lock_flag);
+		atomic_flag_clear(&GlobalMemoryPool.lock_flag);
 		return KERNEL_NOT_ENOUGH_MEMORY;
 	}
 	// fill kernel pte
@@ -67,8 +69,8 @@ uint32_t MapPagesToKernelVirtual(addr_t virtual_addr, uint32_t pages_num, uint32
 	}
 	GlobalMemoryPool.free_pages = GlobalMemoryPool.free_pages - pages_num;
 	// release locks
-	GlobalMemoryPool.lock_flag = 0;
-	map_lock = 0;
+	atomic_flag_clear(&kernel_va_map_lock_flag);
+	atomic_flag_clear(&GlobalMemoryPool.lock_flag);
 
 	return KERNEL_OK;
 }
@@ -87,14 +89,14 @@ void UnMapPhysMemFromKernelVirtualCont(addr_t* phys_addr, uint32_t pages_num, ad
 // unmap pages directly to pool
 void UnMapPagesFromKernelVirtual(addr_t virtual_addr, uint32_t pages_num)
 {
-	// lock kernel virtual address space flag
-	while(__sync_bool_compare_and_swap(&map_lock, 0, 1) == false){
-
-	}
 	// since kernel pde's always present in memory and are static, we don't need to zero'ed them
 	// lock global pages pool
-	while(__sync_bool_compare_and_swap(&GlobalMemoryPool.lock_flag, 0, 1) == false){
-
+	while(atomic_flag_test_and_set(&GlobalMemoryPool.lock_flag) == true){
+		// wait
+	}
+	// lock kernel virtual address space flag
+	while(atomic_flag_test_and_set(&kernel_va_map_lock_flag) == true){
+		// wait
 	}
 	// unmap pte's
 	for(uint32_t i = 0; i < pages_num; i++){
@@ -105,6 +107,6 @@ void UnMapPagesFromKernelVirtual(addr_t virtual_addr, uint32_t pages_num)
 	}
 	GlobalMemoryPool.free_pages = GlobalMemoryPool.free_pages + pages_num;
 	// release locks
-	GlobalMemoryPool.lock_flag = 0;
-	map_lock = 0;
+	atomic_flag_clear(&kernel_va_map_lock_flag);
+	atomic_flag_clear(&GlobalMemoryPool.lock_flag);
 }

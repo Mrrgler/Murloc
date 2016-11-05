@@ -60,6 +60,8 @@ static const char* ExceptionTextTable[] = {
 	"Virtualization exception (0x14)",
 };
 
+struct kernel_core Core;
+
 /*
 	We use 2 stage call, since clang restricted to use C code in naked functions in 3.6.0
 	So, at first cpu calls naked function from interrupt table, which calls normal C function with proper handler
@@ -158,11 +160,10 @@ void PIC_init(uint32_t master_offset, uint32_t slave_offset)
 	io_outb(PIC1_DATA, 0xff); // mask all interrupts
 }
 
-void APICInit()
+uint32_t APICInit()
 {
 	// read physical address of APIC registers and base it to already allocated region
 	addr_t apic_phys_base;
-	volatile uint32_t* pAPICBase = (uint32_t*)APIC_REGISTERS_BASE_X86;
 	uint32_t id, version, max_lvt;
 
 	// check if APIC somehow not enabled and enable it
@@ -171,12 +172,18 @@ void APICInit()
 		apic_phys_base = apic_phys_base | APIC_GLOBAL_ENABLE;
 		wrmsr(IA32_APIC_BASE, apic_phys_base);
 	}
+	// Alloc virtual memory for APIC registers
+	Core.pAPICBase = (volatile uint32_t*)KernelVAAlloc(SIZE_IN_PAGES(APIC_REGISTERS_SIZE_X86));
+	if(Core.pAPICBase == NULL){
+		return KERNEL_ERROR;
+	}
+	LogDebug("APIC registers base: 0x%08x", Core.pAPICBase);
 	// Map Strong Uncacheable region
-	MapPhysMemToKernelVirtualCont(apic_phys_base & 0xfffff000, SIZE_IN_PAGES(APIC_REGISTERS_SIZE_X86), APIC_REGISTERS_BASE_X86, 
+	MapPhysMemToKernelVirtualCont(apic_phys_base & 0xfffff000, SIZE_IN_PAGES(APIC_REGISTERS_SIZE_X86), (addr_t)Core.pAPICBase, 
 															KERNEL_PAGE_SUPERVISOR_X86 | KERNEL_PAGE_READWRITE | KERNEL_PAGE_CACHEDISABLE | KERNEL_PAGE_WRITETHROUGH);
 	
-	id = pAPICBase[APIC_LOCAL_ID_REGISTER];
-	version = pAPICBase[APIC_LOCAL_VERSION_REGISTER];
+	id = Core.pAPICBase[APIC_LOCAL_ID_REGISTER];
+	version = Core.pAPICBase[APIC_LOCAL_VERSION_REGISTER];
 	max_lvt = (version >> 16) & 0xff;
 
 	LogDebug("Local APIC ID: 0x%02x", id >> 24);
@@ -184,25 +191,27 @@ void APICInit()
 	LogDebug("Local APIC Max LVT: 0x%02x", max_lvt);
 
 	// shutdown timer
-	pAPICBase[APIC_TIMER_INITIAL_COUNT] = 0;
-	pAPICBase[APIC_LVT_TIMER_REGISTER] = 0x10020; // one-shot, masked interrupt, vector 0x20
+	Core.pAPICBase[APIC_TIMER_INITIAL_COUNT] = 0;
+	Core.pAPICBase[APIC_LVT_TIMER_REGISTER] = 0x10020; // one-shot, masked interrupt, vector 0x20
 	// mask LINT0
-	pAPICBase[APIC_LVT_LINT0_REGISTER] = 0x10020; // masked interrupt, edge-sensitive, active high, fixed, vector 0x20
+	Core.pAPICBase[APIC_LVT_LINT0_REGISTER] = 0x10020; // masked interrupt, edge-sensitive, active high, fixed, vector 0x20
 	// set LINT1 to delivery NMI interrupt, we probably don't need it, but bsd systems do that
-	pAPICBase[APIC_LVT_LINT1_REGISTER] = 0x400; // active, edge-sensitive, active high, NMI
+	Core.pAPICBase[APIC_LVT_LINT1_REGISTER] = 0x400; // active, edge-sensitive, active high, NMI
 	
 	if(max_lvt > 3){
 		// set up Performance Counter
-		pAPICBase[APIC_LVT_PERF_COUNTER_REGISTER] = 0x10020; // masked interrupt, fixed, vector 0x20
+		Core.pAPICBase[APIC_LVT_PERF_COUNTER_REGISTER] = 0x10020; // masked interrupt, fixed, vector 0x20
 	}
 	if(max_lvt > 4){
 		// set up Thermal Monitor
-		pAPICBase[APIC_LVT_THERMAL_MONITOR_REGISTER] = 0x10020; // masked interrupt, fixed, vector 0x20
+		Core.pAPICBase[APIC_LVT_THERMAL_MONITOR_REGISTER] = 0x10020; // masked interrupt, fixed, vector 0x20
 	}
 	if(max_lvt > 5){
 		// set up CMCI
-		pAPICBase[APIC_LVT_CMCI_REGISTER] = 0x10020; // masked interrupt, fixed, vector 0x20
+		Core.pAPICBase[APIC_LVT_CMCI_REGISTER] = 0x10020; // masked interrupt, fixed, vector 0x20
 	}
+
+	return KERNEL_OK;
 }
 
 #include "IDT_and_Handlers_x86.h"
