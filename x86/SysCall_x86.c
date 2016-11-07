@@ -219,7 +219,7 @@ void __attribute__((naked)) SysCall()
 
 uint32_t CreateProcess()
 {
-	LogDebug("CreateProcess");
+	//LogDebug("CreateProcess");
 	struct Proc* pProc;
 
 	pProc = mrgl_middlefin_alloc(sizeof(struct Proc));

@@ -44,8 +44,8 @@ extern int /*__declspec(naked)*/ main(void)
 
 	InterruptsInit();
 	
-	LogDebug("elf: 0x%08x", *(uint32_t*)(KERNEL_ELF_LOADER_BASE));
-	LogDebug("fs: 0x%08x", *(uint32_t*)(KERNEL_FS_DRIVER_BASE));
+	//LogDebug("elf: 0x%08x", *(uint32_t*)(KERNEL_ELF_LOADER_BASE));
+	//LogDebug("fs: 0x%08x", *(uint32_t*)(KERNEL_FS_DRIVER_BASE));
 
 	SysCallInit();
 
