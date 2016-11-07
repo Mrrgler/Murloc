@@ -47,9 +47,9 @@ extern int /*__declspec(naked)*/ main(void)
 	LogDebug("elf: 0x%08x", *(uint32_t*)(KERNEL_ELF_LOADER_BASE));
 	LogDebug("fs: 0x%08x", *(uint32_t*)(KERNEL_FS_DRIVER_BASE));
 
-	//SysCallInit();
+	SysCallInit();
 
-	//StartTestProcess(KERNEL_ELF_LOADER_BASE, KERNEL_BASE_X86 + KERNEL_SIZE_X86 + KERNEL_STACK_SIZE_X86 + 4096);
+	StartTestProcess(KERNEL_ELF_LOADER_BASE, KERNEL_BASE_X86 + KERNEL_SIZE_X86 + KERNEL_STACK_SIZE_X86 + 4096);
 
 	for(;;);
 

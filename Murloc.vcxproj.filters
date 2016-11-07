@@ -39,9 +39,6 @@
     <ClCompile Include="Util\kstring.c">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-    <ClCompile Include="Common\kmalloc.c">
-      <Filter>Source Files\Common</Filter>
-    </ClCompile>
     <ClCompile Include="MemoryManager\KernelVAAlloc.c">
       <Filter>Source Files\MemoryManager</Filter>
     </ClCompile>
@@ -69,11 +66,17 @@
     <ClCompile Include="MemoryManager\x86\MemoryManager_x86.c">
       <Filter>Source Files\MemoryManager\x86</Filter>
     </ClCompile>
-    <ClCompile Include="Util\mrgl_trees.c">
-      <Filter>Source Files\Util</Filter>
+    <ClCompile Include="MemoryManager\mrgl_alloc.c">
+      <Filter>Source Files\MemoryManager</Filter>
     </ClCompile>
-    <ClCompile Include="Util\mrgl_sizelist.c">
-      <Filter>Source Files\Util</Filter>
+    <ClCompile Include="MemoryManager\mrgl_sizelist.c">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\mrgl_trees.c">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryManager\ProcessVAAlloc.c">
+      <Filter>Source Files\MemoryManager</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -82,9 +85,6 @@
     </ClInclude>
     <ClInclude Include="Util\kstring.h">
       <Filter>Source Files\Util</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\kmalloc.h">
-      <Filter>Source Files\Common</Filter>
     </ClInclude>
     <ClInclude Include="x86\Interrupt.h">
       <Filter>Source Files</Filter>
@@ -116,10 +116,22 @@
     <ClInclude Include="MemoryManager\x86\MemoryManager_x86.h">
       <Filter>Source Files\MemoryManager\x86</Filter>
     </ClInclude>
-    <ClInclude Include="Util\mrgl_trees.h">
-      <Filter>Source Files\Util</Filter>
+    <ClInclude Include="MemoryManager\mrgl_alloc_config.h">
+      <Filter>Source Files\MemoryManager</Filter>
     </ClInclude>
-    <ClInclude Include="Util\mrgl_sizelist.h">
+    <ClInclude Include="MemoryManager\mrgl_sizelist.h">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryManager\mrgl_tinyfin_alloc.h">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryManager\mrgl_trees.h">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryManager\mrgl_alloc.h">
+      <Filter>Source Files\MemoryManager</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\kernel_assert.h">
       <Filter>Source Files\Util</Filter>
     </ClInclude>
   </ItemGroup>

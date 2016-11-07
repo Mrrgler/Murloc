@@ -60,7 +60,7 @@ static const char* ExceptionTextTable[] = {
 	"Virtualization exception (0x14)",
 };
 
-struct kernel_core Core;
+struct kernel_core Core = { 0 };
 
 /*
 	We use 2 stage call, since clang restricted to use C code in naked functions in 3.6.0

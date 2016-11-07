@@ -24,11 +24,14 @@
 	"../Kernel.h"
 	"kstring.h"
 
-1455538725 source:/media/sf_OS/Murloc/System/ElfLoader/Main.c
+1478522704 source:/media/sf_OS/Murloc/System/ElfLoader/Main.c
 	<stdint.h>
 	<stdbool.h>
+	<stddef.h>
 	"Elf32_Headers.h"
-	"../../Kernel.h"
+	<Util/kernel_assert.h>
 
 1454613273 /media/sf_OS/Murloc/System/ElfLoader/Elf32_Headers.h
+
+1478508280 /media/sf_OS/Murloc//Util/kernel_assert.h
 

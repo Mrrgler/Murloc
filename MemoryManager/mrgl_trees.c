@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "mrgl_trees.h"
 #include "mrgl_alloc_config.h"
 

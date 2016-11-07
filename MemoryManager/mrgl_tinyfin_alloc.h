@@ -15,14 +15,14 @@ struct tinyfin_block_header{
 	struct tinyfin_block_header* pNextFree;
 };
 
-struct tinyfin_header{
+struct mrgl_tinyfin_header{
 	struct tinyfin_pool_header* tinyfin_main_table[256 / MRGL_ALLOC_TINYFIN_GRANULARITY];
 	struct tinyfin_block_header* tinyfin_free_table[256 / MRGL_ALLOC_TINYFIN_GRANULARITY];
 };
 
-struct tinyfin_block_header* mrgl_tinyfin_create_new_pool(struct tinyfin_header* pHeader, uint32_t element_size);
+struct tinyfin_block_header* mrgl_tinyfin_create_new_pool(struct mrgl_tinyfin_header* pHeader, uint32_t element_size);
 
-inline static void* mrgl_tinyfin_alloc(struct tinyfin_header* pHeader, uint32_t size)
+inline static void* mrgl_tinyfin_alloc(struct mrgl_tinyfin_header* pHeader, uint32_t size)
 {
 	mrgl_assert(size % MRGL_ALLOC_TINYFIN_GRANULARITY == 0, "");
 	struct tinyfin_pool_header* pPoolHeader;
@@ -47,7 +47,7 @@ inline static void* mrgl_tinyfin_alloc(struct tinyfin_header* pHeader, uint32_t 
 	return pBlock;
 }
 
-inline static void mrgl_tinyfin_free(struct tinyfin_header* pHeader, void* pMem, uint32_t size)
+inline static void mrgl_tinyfin_free(struct mrgl_tinyfin_header* pHeader, void* pMem, uint32_t size)
 {
 	mrgl_assert(size % MRGL_ALLOC_TINYFIN_GRANULARITY == 0, "");
 	uint32_t size_index = size / MRGL_ALLOC_TINYFIN_GRANULARITY - 1;

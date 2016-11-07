@@ -155,7 +155,7 @@ addr_t GetPhysAddr(addr_t virtual_addr, uint32_t** pPTE)
 	return pPTE[virtual_addr >> 22][pte_index] & 0xfffff000 + (virtual_addr & 0xfff);
 }
 
-uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t** ppPTE)
+uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct va_paging_info* pPagesInfo)
 {
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
 	// count PTE and check if there is non present
@@ -165,8 +165,8 @@ uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags
 	uint32_t pte_num = (pte_end - pte_start) / KERNEL_PTE_VA_SIZE_X86;
 
 	for(uint32_t i = 0; i < pte_num; i++){
-		if(ppPTE[pte_offset + i] == NULL){
-			// user tries to change flags on region which not present in his virtual address space
+		if(pPagesInfo->ppPTE[pte_offset + i] == NULL){
+			// user tries to change flags on region which is not present in his virtual address space
 			return KERNEL_ERROR;
 		}
 	}
@@ -174,11 +174,11 @@ uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags
 	for(uint32_t i = 0; i < pages_num; i++){
 		addr_t addr = virtual_addr + i * KERNEL_PAGE_SIZE_X86;
 
-		if(ppPTE[addr >> 22][(addr >> 12) & 0x3ff] == 0){
+		if(pPagesInfo->ppPTE[addr >> 22][(addr >> 12) & 0x3ff] == 0){
 			// page not present
 			return KERNEL_ERROR;
 		}
-		ppPTE[addr >> 22][(addr >> 12) & 0x3ff] = (ppPTE[addr >> 22][(addr >> 12) & 0x3ff] & 0xfffff000) | flags;
+		pPagesInfo->ppPTE[addr >> 22][(addr >> 12) & 0x3ff] = (pPagesInfo->ppPTE[addr >> 22][(addr >> 12) & 0x3ff] & 0xfffff000) | flags;
 	}
 
 	return KERNEL_OK;
@@ -196,12 +196,12 @@ uint32_t TranslateMappingFlags(uint32_t flags)
 }
 
 // copies kernel virtual address space to top of the virtual address space of chosen process
-void CopyKernelASToProcess(uint32_t* pPDE)
+void CopyKernelASToProcess(struct va_paging_info* pPagesInfo)
 {
 	addr_t first_pte = KPDE[1024 - 8];
 
 	for(uint32_t i = 0; i < 8; i++){
-		pPDE[1024 - 8 + i] = first_pte;
+		pPagesInfo->pPDE[1024 - 8 + i] = first_pte;
 		first_pte = first_pte + KERNEL_PAGE_SIZE_X86; // kinda hack, but it should be faster than 8 copies
 	}
 }
@@ -250,28 +250,30 @@ uint32_t MapPagesToPTEs(addr_t virtual_addr, uint32_t pages_num, uint32_t flags,
 //
 // this function assumes that virtual_addr already aligned to page
 // no thread checks
-uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t* pPDE, uint32_t** ppPTE)
+uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct va_paging_info* pPagesInfo)
 {
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
-	LogDebug("MapPagesToProcessVirtual not implemented!");
-	LogDebug("MapPagesToProcessVirtual addr: 0x%08x, pages_num: %00u, flags: 0x%04x", virtual_addr, pages_num, flags);
-	/*// count PTE and check if we need allocate additional ptes
+	//LogDebug("MapPagesToProcessVirtual addr: 0x%08x, pages_num: %00u, flags: 0x%04x", virtual_addr, pages_num, flags);
+	// count PTE and check if we need allocate additional ptes
 	addr_t pte_start = ALIGN_TO_DOWN(virtual_addr, KERNEL_PTE_VA_SIZE_X86);
 	addr_t pte_end	 = ALIGN_TO_UP(virtual_addr + KERNEL_PAGE_SIZE_X86 * pages_num, KERNEL_PTE_VA_SIZE_X86);
 	uint32_t pte_offset = pte_start / KERNEL_PTE_VA_SIZE_X86;
 	uint32_t pte_num = (pte_end - pte_start) / KERNEL_PTE_VA_SIZE_X86;
-	//LogDebug("pte_offset: 0x%08x, pte_num: %00u", pte_offset, pte_num);
+	
 	for(uint32_t i = 0; i < pte_num; i++){
-		if(ppPTE[pte_offset + i] == NULL){
+		if(pPagesInfo->ppPTE[pte_offset + i] == NULL){
 			// we need to alloc new PTE and map it into process PDE
-			
-			ppPTE[pte_offset + i] = kmemalign(KERNEL_PAGE_SIZE_X86, KERNEL_PAGE_SIZE_X86);
-			memset(ppPTE[pte_offset + i], 0, KERNEL_PAGE_SIZE_X86);
-			pPDE[pte_offset + i] = GetKernelPhysAddr((addr_t)&ppPTE[pte_offset + i][0]) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
+			pPagesInfo->ppPTE[pte_offset + i] = (uint32_t*)kmmap(1);
+			if(pPagesInfo->ppPTE[pte_offset + i] == NULL){
+				LogDebug("Fail.");
+				return KERNEL_ERROR;
+			}
+			memset(pPagesInfo->ppPTE[pte_offset + i], 0, KERNEL_PAGE_SIZE_X86);
+			pPagesInfo->pPDE[pte_offset + i] = GetKernelPhysAddr((addr_t)(&pPagesInfo->ppPTE[pte_offset + i][0])) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
 		}
-	}*/
+	}
 	// map pages into the pte's
-	return MapPagesToPTEs(virtual_addr, pages_num, flags, ppPTE);
+	return MapPagesToPTEs(virtual_addr, pages_num, flags, pPagesInfo->ppPTE);
 }
 
 // non working
@@ -388,6 +390,7 @@ uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize)
 
 	LogDebug("VGA memory base: 0x%08x", VGA_MEMORY_BASE_X86);
 	
+	//memset(&Core, 0, sizeof(struct kernel_core));
 
 	// init tss
 	memset(&TSS, 0, sizeof(TSS));

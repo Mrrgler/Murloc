@@ -12,8 +12,8 @@ struct mrgl_big_block{
 };
 
 struct mrgl_alloc_header{
-	struct mrgl_tree_header pAddrHeader;
-	struct mrgl_sizelist_header pSizeHeader;
+	struct mrgl_tree_header AddrHeader;
+	struct mrgl_sizelist_header SizeHeader;
 	void (*free_info_block)(struct mrgl_big_block* pMem);
 };
 

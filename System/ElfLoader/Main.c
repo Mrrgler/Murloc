@@ -1,17 +1,30 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "Elf32_Headers.h"
-#include "../../Kernel.h"
+#include <Util/kernel_assert.h>
+//#include "../../Kernel.h"
 //#include "../Util/kstring.h"
 
 //#define NULL 0
 typedef uint32_t size_t;
 #define ELF_LOADER_SIZE 16384
 
+#define ALIGN_TO_UP(x, y)\
+	(((x) + (y) - 1) & (~((y) - 1)))
+
+#define FILL_BITS(x)\
+	((1 << (x)) - 1)
+
+#define ALIGN_UP_TO_PAGE(x) (ALIGN_TO_UP(x, 4096))
+#define SIZE_IN_PAGES(x) (ALIGN_TO_UP(x, 4096) / 4096)
+
 void LoadElfFromMemory(uint32_t curr_addr, uint32_t elf_addr);
 void exit(uint32_t);
 
 static char msg[] = "Hello world, mrgl.";
+
+typedef uint32_t addr_t;
 
 enum SysCalls{
 	SYSCALL_EXIT = 0,
@@ -19,6 +32,15 @@ enum SysCalls{
 	SYSCALL_CHANGE_PAGE_FLAGS,
 	SYSCALL_CREATE_THREAD,
 	SYSCALL_PRINT_TEXT,
+};
+
+enum SysErrors{
+	SYS_OK = 0,
+	SYS_INVALID_PAGES_NUM,
+	SYS_INVALID_FLAGS,
+	SYS_NOT_ENOUGH_FREE_SPACE,
+	SYS_INVALID_ADDRESS_RANGE,
+
 };
 
 enum ElfLoaderErrorCodes{
@@ -144,12 +166,12 @@ void LoadElfFromMemory(uint32_t curr_addr, uint32_t elf_addr)
 					exit(10);
 				}
 				// allocate pages for section
-				if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE) != KERNEL_OK){
+				if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE, NULL) != SYS_OK){
 					exit(ELF_LOADER_ERROR_FAILED_TO_ALLOCATE);
 				}
 				memcpy((void*)pSectHeader[i].sh_addr, (void*)(elf_addr + pSectHeader[i].sh_offset), pSectHeader[i].sh_size);
 				// change flags for region with copied section for ensuring protection
-				if(SysChangePageFlags(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READ | PAGE_EXEC) != KERNEL_OK){
+				if(SysChangePageFlags(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READ | PAGE_EXEC) != SYS_OK){
 					exit(ELF_LOADER_ERROR_CHANGE_FLAGS_FAILED);
 				}
 				// only one text section allowed
@@ -159,11 +181,11 @@ void LoadElfFromMemory(uint32_t curr_addr, uint32_t elf_addr)
 				if(rodata_loaded == true){
 					exit(11);
 				}
-				if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE) != KERNEL_OK){
+				if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE, NULL) != SYS_OK){
 					exit(ELF_LOADER_ERROR_FAILED_TO_ALLOCATE);
 				}
 				memcpy((void*)pSectHeader[i].sh_addr, (void*)(elf_addr + pSectHeader[i].sh_offset), pSectHeader[i].sh_size);
-				if(SysChangePageFlags(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READ) != KERNEL_OK){
+				if(SysChangePageFlags(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READ) != SYS_OK){
 					exit(ELF_LOADER_ERROR_CHANGE_FLAGS_FAILED);
 				}
 				rodata_loaded = true;
@@ -172,7 +194,7 @@ void LoadElfFromMemory(uint32_t curr_addr, uint32_t elf_addr)
 				if(data_loaded == true){
 					exit(12);
 				}
-				if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE) != KERNEL_OK){
+				if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE, NULL) != SYS_OK){
 					exit(ELF_LOADER_ERROR_FAILED_TO_ALLOCATE);
 				}
 				memcpy((void*)pSectHeader[i].sh_addr, (void*)(elf_addr + pSectHeader[i].sh_offset), pSectHeader[i].sh_size);
@@ -183,7 +205,7 @@ void LoadElfFromMemory(uint32_t curr_addr, uint32_t elf_addr)
 			if(bss_loaded == true){
 				exit(13);
 			}
-			if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE) != KERNEL_OK){
+			if(SysAllocPage(pSectHeader[i].sh_addr, SIZE_IN_PAGES(pSectHeader[i].sh_size), PAGE_READWRITE, NULL) != SYS_OK){
 				exit(ELF_LOADER_ERROR_FAILED_TO_ALLOCATE);
 			}
 			memset((void*)pSectHeader, 0, pSectHeader[i].sh_size);

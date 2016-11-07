@@ -10,18 +10,7 @@
 #include "x86/defines_x86.h"
 #include "x86/Log_x86.h"
 
-#define make_string(arg) #arg
-#define make_mrgl(arg) make_string(arg)
-
-#ifdef KERNEL_DEBUG
-#define kernel_assert(arg, text)\
-	if((arg) == false){\
-		LogCritical(text" "__FILE__":"make_mrgl(__LINE__));\
-		asm("hlt");\
-	}
-#else
-#define kernel_assert(arg, text) 
-#endif
+#include <Util/kernel_assert.h>
 
 #else
 #error "Arm not written yet!"
@@ -32,6 +21,8 @@ typedef uint32_t addr_t;
 #ifndef NULL
 #define NULL 0
 #endif
+
+#include <MemoryManager/mrgl_alloc.h>
 
 enum KERNEL_ERROR_CODES{
 	KERNEL_OK,
@@ -46,12 +37,33 @@ enum KERNEL_SUBSYSTEM_ERROR_CODES{
 	KERNEL_SUBSYS_INTERRUPTS,
 };
 
+struct va_paging_info{
+	uint32_t* pPDE;
+	uint32_t** ppPTE;
+};
+
+struct Proc{
+	// platform independent
+	uint32_t pid;
+
+	struct mrgl_alloc_header VAHeader;
+	struct mrgl_sizelist_node* VASizelistTable[128];
+	atomic_flag va_lock_flag;
+	// platform dependent
+	struct va_paging_info PagingInfo;
+	addr_t pStack;
+	addr_t eip;
+};
+
 struct kernel_core{
 // platform independent
-
+	struct mrgl_tinyfin_header tinyfin;
+	struct Proc* pCurrProc;
 // platform depended
 	volatile uint32_t* pAPICBase;
 };
+
+
 /*
 #ifndef KINTRIN
 extern "C" void* __cdecl memset(void* pBuf, uint8_t value, addr_t size);
@@ -75,6 +87,19 @@ extern "C" void* __cdecl memset(void* pBuf, uint8_t value, addr_t size);
 
 #define ADDR_LOW(addr)((addr_t)addr & 0x0000ffff)
 #define ADDR_HIGH(addr)((addr_t)addr >> 16)
+
+
+static inline void set_lock_flag(atomic_flag* pFlag)
+{
+	while(atomic_flag_test_and_set(pFlag) == true){
+		// wait
+	}
+}
+
+static inline void clear_lock_flag(atomic_flag* pFlag)
+{
+	atomic_flag_clear(pFlag);
+}
 
 
 static inline void io_outb(uint16_t port, uint8_t val)

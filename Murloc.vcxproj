@@ -141,15 +141,16 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Common\kmalloc.c" />
     <ClCompile Include="Main.c" />
     <ClCompile Include="MemoryManager\KernelVAAlloc.c" />
     <ClCompile Include="MemoryManager\MemoryManager.c" />
+    <ClCompile Include="MemoryManager\mrgl_alloc.c" />
+    <ClCompile Include="MemoryManager\mrgl_sizelist.c" />
+    <ClCompile Include="MemoryManager\mrgl_trees.c" />
+    <ClCompile Include="MemoryManager\ProcessVAAlloc.c" />
     <ClCompile Include="MemoryManager\x86\KernelVA_x86.c" />
     <ClCompile Include="MemoryManager\x86\MemoryManager_x86.c" />
     <ClCompile Include="Util\kstring.c" />
-    <ClCompile Include="Util\mrgl_sizelist.c" />
-    <ClCompile Include="Util\mrgl_trees.c" />
     <ClCompile Include="x86\Init_x86.c" />
     <ClCompile Include="x86\Interrupt.c" />
     <ClCompile Include="x86\kmalloc_x86.c" />
@@ -158,14 +159,17 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Arch\x86\Init_x86.h" />
-    <ClInclude Include="Common\kmalloc.h" />
     <ClInclude Include="ElfLoader\Elf32_Headers.h" />
     <ClInclude Include="Kernel.h" />
     <ClInclude Include="MemoryManager\MemoryManager.h" />
+    <ClInclude Include="MemoryManager\mrgl_alloc.h" />
+    <ClInclude Include="MemoryManager\mrgl_alloc_config.h" />
+    <ClInclude Include="MemoryManager\mrgl_sizelist.h" />
+    <ClInclude Include="MemoryManager\mrgl_tinyfin_alloc.h" />
+    <ClInclude Include="MemoryManager\mrgl_trees.h" />
     <ClInclude Include="MemoryManager\x86\MemoryManager_x86.h" />
+    <ClInclude Include="Util\kernel_assert.h" />
     <ClInclude Include="Util\kstring.h" />
-    <ClInclude Include="Util\mrgl_sizelist.h" />
-    <ClInclude Include="Util\mrgl_trees.h" />
     <ClInclude Include="x86\defines_x86.h" />
     <ClInclude Include="x86\IDT_and_Handlers_x86.h" />
     <ClInclude Include="x86\Init_x86.h" />

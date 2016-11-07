@@ -44,8 +44,9 @@ uint32_t FreePagesGlobal(uint32_t* pBuf, uint32_t num)
 
 void* kmmap(uint32_t pages_num)
 {
+	//LogDebug("kmmap pages_num: %00u", pages_num);
 	void* pMem;
-
+	
 	pMem = (void*)KernelVAAlloc(pages_num);
 	if(pMem == NULL){
 		return NULL;

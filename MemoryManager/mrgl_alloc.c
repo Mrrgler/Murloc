@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include "mrgl_trees.h"
 #include "mrgl_sizelist.h"
@@ -24,7 +25,7 @@ struct mrgl_alloc_header middlefin_alloc_header = { { 0 } , { 0, { 0 }, 9, 1024,
 //struct tree_head_size middlefin_tree_size = { 0 };
 //struct mrgl_tree_header middlefin_tree_addr = { 0 };
 
-struct tinyfin_header tinyfin = { 0, 0 };
+struct mrgl_tinyfin_header tinyfin = { 0, 0 };
 
 uint32_t mrgl_alloc_init()
 {
@@ -32,7 +33,7 @@ uint32_t mrgl_alloc_init()
 	return 0;
 }
 
-struct tinyfin_block_header* mrgl_tinyfin_create_new_pool(struct tinyfin_header* pHeader, uint32_t element_size)
+struct tinyfin_block_header* mrgl_tinyfin_create_new_pool(struct mrgl_tinyfin_header* pHeader, uint32_t element_size)
 {
 	struct tinyfin_pool_header* pPoolHeader = (struct tinyfin_pool_header*)mrgl_moremem(MRGL_ALLOC_POOL_SIZE);
 	uint32_t size_index = element_size / MRGL_ALLOC_TINYFIN_GRANULARITY - 1;
@@ -54,19 +55,19 @@ struct tinyfin_block_header* mrgl_tinyfin_create_new_pool(struct tinyfin_header*
 	pPoolHeader->free_num = num_of_elements;
 	//pHeader->elem_size = element_size;
 	//pHeader->mrgl = *(uint32_t*)mrgl_id;
-	struct tinyfin_block_header* pBlock = (struct tinyfin_block_header*)((uint8_t*)pPoolHeader + sizeof(struct tinyfin_pool_header));
+	struct tinyfin_block_header* pBase = (struct tinyfin_block_header*)((uint8_t*)pPoolHeader + sizeof(struct tinyfin_pool_header));
+	struct tinyfin_block_header* pBlock;
 
 	for(uint32_t i = 0; i < (num_of_elements - 1); i++){
-		//pBlock = (struct block_header*)((uint8_t*)pPoolHeader + sizeof(struct tinyfin_pool_header) + element_size * i);
-		//pBlock->pNextFree = (struct block_header*)((uint8_t*)pBlock + element_size * (i + 1));
-		pBlock[i].pNextFree = &pBlock[i + 1];
+		pBlock = (struct tinyfin_block_header*)((uint8_t*)pBase + element_size * i);
+		pBlock->pNextFree = (struct tinyfin_block_header*)((uint8_t*)pBase + element_size * (i + 1));
+		//pBlock[i].pNextFree = &pBlock[i + 1];
 	}
 
-	pBlock[num_of_elements - 1].pNextFree = NULL;
-	pHeader->tinyfin_free_table[size_index] = pBlock;
-	
+	((struct tinyfin_block_header*)((uint8_t*)pBlock + element_size))->pNextFree = NULL;
+	pHeader->tinyfin_free_table[size_index] = (struct tinyfin_block_header*)((uint8_t*)pPoolHeader + sizeof(struct tinyfin_pool_header));
 
-	return pBlock;
+	return pHeader->tinyfin_free_table[size_index];
 }
 
 inline static void addrlist_insert_before(struct mrgl_big_block* pDstBlock, struct mrgl_big_block* pBlock)
@@ -104,7 +105,7 @@ void print_addrlist()
 	struct mrgl_big_block* pBlock;
 	struct mrgl_tree_node* pAddrNode;
 
-	pAddrNode = mrgl_tree_find(&middlefin_alloc_header.pAddrHeader, 4);
+	pAddrNode = mrgl_tree_find(&middlefin_alloc_header.AddrHeader, 4);
 	if(pAddrNode != NULL){
 		pBlock = (struct mrgl_big_block*)pAddrNode;
 
@@ -131,7 +132,7 @@ void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_
 	// try to coalesce
 	if(pBlock->AddrNode.key < pNewBlock->AddrNode.key){
 		pLastBlock = pBlock;
-		while(pBlock != NULL && (pBlock->AddrNode.key + pBlock->SizeNode.size) <= pNewBlock->AddrNode.key){
+		while(pBlock != NULL && pBlock->AddrNode.key < pNewBlock->AddrNode.key){
 			pLastBlock = pBlock;
 			pBlock = pBlock->pNext;
 		}
@@ -155,9 +156,9 @@ void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_
 	}
 	
 	if(HugLeft == true && HugRight == true){
-		mrgl_sizelist_remove(&pHeader->pSizeHeader, &pLeft->SizeNode);
-		mrgl_sizelist_remove(&pHeader->pSizeHeader, &pRight->SizeNode);
-		mrgl_tree_remove(&pHeader->pAddrHeader, &pRight->AddrNode);
+		mrgl_sizelist_remove(&pHeader->SizeHeader, &pLeft->SizeNode);
+		mrgl_sizelist_remove(&pHeader->SizeHeader, &pRight->SizeNode);
+		mrgl_tree_remove(&pHeader->AddrHeader, &pRight->AddrNode);
 
 		pBlock = pLeft;
 		pBlock->SizeNode.size = pLeft->SizeNode.size + pNewBlock->SizeNode.size + pRight->SizeNode.size;
@@ -173,7 +174,7 @@ void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_
 			pHeader->free_info_block(pNewBlock);
 		}
 	}else if(HugLeft == true){
-		mrgl_sizelist_remove(&pHeader->pSizeHeader, &pLeft->SizeNode);
+		mrgl_sizelist_remove(&pHeader->SizeHeader, &pLeft->SizeNode);
 
 		pBlock = pLeft;
 		pBlock->SizeNode.size = pBlock->SizeNode.size + pNewBlock->SizeNode.size;
@@ -181,8 +182,8 @@ void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_
 			pHeader->free_info_block(pNewBlock);
 		}
 	}else if(HugRight == true){
-		mrgl_sizelist_remove(&pHeader->pSizeHeader, &pRight->SizeNode);
-		mrgl_tree_remove(&pHeader->pAddrHeader, &pRight->AddrNode);
+		mrgl_sizelist_remove(&pHeader->SizeHeader, &pRight->SizeNode);
+		mrgl_tree_remove(&pHeader->AddrHeader, &pRight->AddrNode);
 
 		pBlock = pNewBlock;
 		pBlock->SizeNode.size = pNewBlock->SizeNode.size + pRight->SizeNode.size;
@@ -196,7 +197,7 @@ void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_
 			pBlock->pNext->pPrev = pBlock;
 		}
 
-		mrgl_tree_insert(&pHeader->pAddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
+		mrgl_tree_insert(&pHeader->AddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
 		if(pHeader->free_info_block != NULL){
 			pHeader->free_info_block(pRight);
 		}
@@ -211,21 +212,21 @@ void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_
 			addrlist_insert_before(pRight, pBlock);
 		}
 
-		mrgl_tree_insert(&pHeader->pAddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
+		mrgl_tree_insert(&pHeader->AddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
 	}
-	mrgl_sizelist_insert(&pHeader->pSizeHeader, &pBlock->SizeNode);
+	mrgl_sizelist_insert(&pHeader->SizeHeader, &pBlock->SizeNode);
 }
 
 void* mrgl_middlefin_alloc(uint32_t size)
 {
-	mrgl_assert(size % MRGL_ALLOC_MIDDLEFIN_GRANULARITY == 0, "Unaligned size!");
 	struct mrgl_big_block* pBlock;
 	struct mrgl_sizelist_node* pSizeNode;
 	void* pMem;
 	
+	size = ALIGN_UP_TO(size, MRGL_ALLOC_MIDDLEFIN_GRANULARITY);
 	//check_tree();
 	//check_sizelist();
-	pSizeNode = mrgl_sizelist_find(&middlefin_alloc_header.pSizeHeader, size);
+	pSizeNode = mrgl_sizelist_find(&middlefin_alloc_header.SizeHeader, size);
 	if(pSizeNode == NULL){
 		// allocate some space from upper level
 		struct mrgl_tree_node* pAddrNode;
@@ -235,7 +236,7 @@ void* mrgl_middlefin_alloc(uint32_t size)
 			return NULL;
 		}
 		
-		pAddrNode = mrgl_tree_find(&middlefin_alloc_header.pAddrHeader, (uint32_t)pBlock);
+		pAddrNode = mrgl_tree_find(&middlefin_alloc_header.AddrHeader, (uint32_t)pBlock);
 		if(pAddrNode == NULL){
 			// no free blocks
 			pBlock->pPrev = NULL;
@@ -244,8 +245,8 @@ void* mrgl_middlefin_alloc(uint32_t size)
 			//pBlock->pNextFree = NULL;
 			pBlock->SizeNode.size = MRGL_BIG_POOL_SIZE;
 
-			mrgl_sizelist_insert(&middlefin_alloc_header.pSizeHeader, &pBlock->SizeNode);
-			mrgl_tree_insert(&middlefin_alloc_header.pAddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
+			mrgl_sizelist_insert(&middlefin_alloc_header.SizeHeader, &pBlock->SizeNode);
+			mrgl_tree_insert(&middlefin_alloc_header.AddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
 			//check_tree();
 		}else{
 			// we have some free blocks, just don't have suitable size
@@ -253,14 +254,14 @@ void* mrgl_middlefin_alloc(uint32_t size)
 			pBlock->SizeNode.size = MRGL_BIG_POOL_SIZE;
 			mrgl_insert_free_block(&middlefin_alloc_header, pAddrNode, pBlock);
 			//check_tree();
-			pBlock = get_block_from_size_node(mrgl_sizelist_find(&middlefin_alloc_header.pSizeHeader, size));
+			pBlock = get_block_from_size_node(mrgl_sizelist_find(&middlefin_alloc_header.SizeHeader, size));
 		}
 		// TODO: insert block into linked list
 	}else{
 		pBlock = get_block_from_size_node(pSizeNode);
 	}
 
-	mrgl_sizelist_remove(&middlefin_alloc_header.pSizeHeader, &pBlock->SizeNode);
+	mrgl_sizelist_remove(&middlefin_alloc_header.SizeHeader, &pBlock->SizeNode);
 
 	mrgl_assert(pBlock->SizeNode.size >= size, "");
 	if(pBlock->SizeNode.size > size){
@@ -268,7 +269,7 @@ void* mrgl_middlefin_alloc(uint32_t size)
 		pBlock->SizeNode.size = pBlock->SizeNode.size - size;
 		pMem = (uint8_t*)pBlock + pBlock->SizeNode.size;
 
-		mrgl_sizelist_insert(&middlefin_alloc_header.pSizeHeader, &pBlock->SizeNode);
+		mrgl_sizelist_insert(&middlefin_alloc_header.SizeHeader, &pBlock->SizeNode);
 		//check_tree();
 	}else{
 		pMem = pBlock;
@@ -280,7 +281,7 @@ void* mrgl_middlefin_alloc(uint32_t size)
 			pBlock->pNext->pPrev = pBlock->pPrev;
 		}
 
-		mrgl_tree_remove(&middlefin_alloc_header.pAddrHeader, &pBlock->AddrNode);
+		mrgl_tree_remove(&middlefin_alloc_header.AddrHeader, &pBlock->AddrNode);
 		//check_tree();
 	}
 
@@ -289,13 +290,13 @@ void* mrgl_middlefin_alloc(uint32_t size)
 
 void mrgl_middlefin_free(void* pMem, uint32_t size)
 {
-	mrgl_assert(size % MRGL_ALLOC_MIDDLEFIN_GRANULARITY == 0, "Unaligned size!");
 	struct mrgl_big_block* pBlock = (struct mrgl_big_block*)pMem;
 	struct mrgl_tree_node* pAddrNode;
 	
+	size = ALIGN_UP_TO(size, MRGL_ALLOC_MIDDLEFIN_GRANULARITY);
 	//check_tree();
 	
-	pAddrNode = mrgl_tree_find(&middlefin_alloc_header.pAddrHeader, (uint32_t)pMem);
+	pAddrNode = mrgl_tree_find(&middlefin_alloc_header.AddrHeader, (uint32_t)pMem);
 	pBlock->SizeNode.size = size;
 
 	if(pAddrNode == NULL){
@@ -303,8 +304,8 @@ void mrgl_middlefin_free(void* pMem, uint32_t size)
 		pBlock->pPrev = NULL;
 		pBlock->pNext = NULL;
 
-		mrgl_tree_insert(&middlefin_alloc_header.pAddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
-		mrgl_sizelist_insert(&middlefin_alloc_header.pSizeHeader, &pBlock->SizeNode);
+		mrgl_tree_insert(&middlefin_alloc_header.AddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
+		mrgl_sizelist_insert(&middlefin_alloc_header.SizeHeader, &pBlock->SizeNode);
 	}else{
 		pBlock->AddrNode.key = (uint32_t)pBlock;
 		mrgl_insert_free_block(&middlefin_alloc_header, pAddrNode, pBlock);
@@ -320,7 +321,6 @@ void* mrgl_alloc(uint32_t size)
 		return mrgl_tinyfin_alloc(&tinyfin, size);
 	}
 	if(size <= 256 * 1024){
-		size = ALIGN_UP_TO(size, 64);
 		stats.middlefin = stats.middlefin + 1;
 		return mrgl_middlefin_alloc(size);
 	}

@@ -3,7 +3,6 @@
 #include <MemoryManager/MemoryManager.h>
 #include <MemoryManager/x86/MemoryManager_x86.h>
 #include <x86/post_defines_x86.h>
-#include <Common/nedtrie.h>
 
 
 enum SysCalls{
@@ -19,70 +18,8 @@ struct SysCallTableEntry{
 	uint32_t (*SysCall)(uint32_t* pParams);
 };
 
-#define REGION_ENTRY(type)                        NEDTRIE_ENTRY(type)
-#define REGION_HEAD(name, type)                   NEDTRIE_HEAD(name, type)
-#define REGION_INIT(treevar)                      NEDTRIE_INIT(treevar)
-#define REGION_EMPTY(treevar)                     NEDTRIE_EMPTY(treevar)
-#define REGION_GENERATE(proto, treetype, nodetype, link, cmpfunct) NEDTRIE_GENERATE(proto, treetype, nodetype, link, cmpfunct, NEDTRIE_NOBBLEZEROS(treetype))
-#define REGION_INSERT(treetype, treevar, node)    NEDTRIE_INSERT(treetype, treevar, node)
-#define REGION_REMOVE(treetype, treevar, node)    NEDTRIE_REMOVE(treetype, treevar, node)
-#define REGION_FIND(treetype, treevar, node)      NEDTRIE_FIND(treetype, treevar, node)
-#define REGION_NFIND(treetype, treevar, node)     NEDTRIE_NFIND(treetype, treevar, node)
-#define REGION_EXACTFIND(treetype, treevar, node) NEDTRIE_EXACTFIND(treetype, treevar, node)
-#define REGION_CFIND(treetype, treevar, node, rounds) NEDTRIE_CFIND(treetype, treevar, node, rounds)
-#define REGION_MAX(treetype, treevar)             NEDTRIE_MAX(treetype, treevar)
-#define REGION_MIN(treetype, treevar)             NEDTRIE_MIN(treetype, treevar)
-#define REGION_NEXT(treetype, treevar, node)      NEDTRIE_NEXT(treetype, treevar, node)
-#define REGION_PREV(treetype, treevar, node)      NEDTRIE_PREV(treetype, treevar, node)
-#define REGION_FOREACH(var, treetype, treevar)    NEDTRIE_FOREACH(var, treetype, treevar)
-#define REGION_HASNODEHEADER(treevar, node, link) NEDTRIE_HASNODEHEADER(treevar, node, link)
+extern struct kernel_core Core;
 
-typedef struct region_node region_node;
-
-struct region_node{
-	REGION_ENTRY(region_node) linkA;
-	REGION_ENTRY(region_node) linkL;
-	addr_t start;
-	addr_t end;
-};
-
-REGION_HEAD(tree_head_addr, region_node);
-REGION_HEAD(tree_head_length, region_node);
-
-static uint32_t ProcPDE[1024] __attribute__((aligned(4096)));
-static uint32_t* pProcPTE[1024] __attribute__((aligned(4096)));
-//static uint8_t ProcStack[4096] __attribute__((aligned(4096)));
-
-//static uint32_t ProcPTE0[1024] __attribute__((aligned(4096)));
-static uint32_t ProcPTE1[1024] __attribute__((aligned(4096)));
-
-struct Proc{
-	uint32_t pid;
-
-	uint32_t* pPDE;
-	uint32_t** ppPTE;
-	addr_t pStack;
-	addr_t eip;
-	struct tree_head_addr va_root_addr;
-	struct tree_head_length va_root_len;
-};
-
-struct Proc Proc0;
-
-size_t get_key_addr(const struct region_node* pNode)
-{
-	
-	return pNode->start;
-}
-
-size_t get_key_length(const struct region_node* pNode)
-{
-
-	return pNode->end - pNode->start;
-}
-
-REGION_GENERATE(static, tree_head_addr, region_node, linkA, get_key_addr);
-REGION_GENERATE(static, tree_head_length, region_node, linkL, get_key_length);
 
 uint32_t SysPrintText(uint32_t* pParams)
 {
@@ -142,11 +79,10 @@ uint32_t SysAllocPage(uint32_t* pParams)
 	uint32_t ret		= 0;
 	uint32_t error		= 0;
 	uint32_t tr_flags	= 0;
-	struct region_node* res;
-	struct region_node n;
 
-	LogDebug("SysAllocPage addr: 0x%08x  pages: %00u  flags: 0x%08x", addr, pages_num, flags);
+	struct Proc* pProc = Core.pCurrProc;
 
+	LogDebug("SysAllocPage addr: 0x%08x  pages: %00u  flags: 0x%08x, pError: 0x%08x", addr, pages_num, flags, pError);
 	// first check if pages_num is below or equal max correct value to be sure that pages_num * KERNEL_PAGE_SIZE will not cause integer overflow
 	if(pages_num == 0 || pages_num > KERNEL_PAGE_MAX_NUM){
 		LogDebug("SysAllocPage error, invalid pages num.");
@@ -159,97 +95,20 @@ uint32_t SysAllocPage(uint32_t* pParams)
 		error = SYS_INVALID_FLAGS;
 		goto on_error;
 	}
-
+	
 	tr_flags = TranslateMappingFlags(flags);
 
-	if(addr == (addr_t)NULL){
-		// user wants to autoallocate VA, find space by size
-		n.start = 0;
-		n.end = pages_num * KERNEL_PAGE_SIZE_X86;
+	//set_lock_flag(&pProc->va_lock_flag);
 
-		res = REGION_NFIND(tree_head_length, &Proc0.va_root_len, &n);
-		if(res == NULL){
-			// can't find suitable free space
-			LogDebug("SysAllocPage error, not enough free space.");
-			error = SYS_NOT_ENOUGH_FREE_SPACE;
-			goto on_error;
-		}
-		// remove old node
-		REGION_REMOVE(tree_head_length, &Proc0.va_root_len, res);
-		REGION_REMOVE(tree_head_addr, &Proc0.va_root_addr, res);
-		// check if we have not used space from this chunk and if so insert it back to the tree
-		n.end = res->start + pages_num * KERNEL_PAGE_SIZE_X86;
-
-		if((res->end - n.end) > 0){
-			struct region_node* new_node = (struct region_node*)kmalloc(sizeof(struct region_node));
-
-			new_node->start = n.end;
-			new_node->end = res->end;
-			REGION_INSERT(tree_head_length, &Proc0.va_root_len, new_node);
-			REGION_INSERT(tree_head_addr, &Proc0.va_root_addr, new_node);
-		}
-	}else{
-		// user wants map to specific address, check address range
-		// check if desired memory region lies in correct range
-		if(CheckAddressRange(addr, pages_num * KERNEL_PAGE_SIZE_X86) != KERNEL_OK){
-			LogDebug("SysAllocPage error, invalid address range.");
-			error = SYS_INVALID_ADDRESS_RANGE;
-			goto on_error;
-		}
-
-		n.start = addr;
-		n.end = addr + pages_num * KERNEL_PAGE_SIZE_X86; // n.end points to next byte after last correct address
-		// check if desired memory region isn't overlap existed memory regions in calling process
-		res = REGION_NFIND(tree_head_addr, &Proc0.va_root_addr, &n);
-		if(res == NULL){
-			// doesn't have regions with equal or bigger start address, check for largest start address
-			res = REGION_MAX(tree_head_addr, &Proc0.va_root_addr);
-			if(res == NULL){
-				// tree is empty?
-				LogDebug("SysAllocPage error, no free space.");
-				error = SYS_NOT_ENOUGH_FREE_SPACE;
-				goto on_error;
-			}
-		}
-		// find first region that have less or equal start address than required
-		while(res != NULL && res->start > n.start){
-			res = REGION_PREV(tree_head_addr, &Proc0.va_root_addr, res);
-		}
-		// check if we have enough space
-		if(res == NULL || n.end > res->end){
-			LogDebug("SysAllocPage error, can't find suitable space.");
-			error = SYS_NOT_ENOUGH_FREE_SPACE;
-			goto on_error;
-		}
-		// remove old node
-		REGION_REMOVE(tree_head_addr, &Proc0.va_root_addr, res);
-		REGION_REMOVE(tree_head_length, &Proc0.va_root_len, res);
-		// check if we need to split free region in two
-		if((n.start - res->start) > 0){
-			struct region_node* new_node = (struct region_node*)kmalloc(sizeof(struct region_node));
-
-			new_node->start = res->start;
-			new_node->end = n.start;
-			REGION_INSERT(tree_head_addr, &Proc0.va_root_addr, new_node);
-			REGION_INSERT(tree_head_length, &Proc0.va_root_len, new_node);
-		}
-		// or if we should create new free node, just less than the old one
-		if((res->end - n.end) > 0){
-			struct region_node* new_node = (struct region_node*)kmalloc(sizeof(struct region_node));
-
-			new_node->start = n.end;
-			new_node->end = res->end;
-			REGION_INSERT(tree_head_addr, &Proc0.va_root_addr, new_node);
-			REGION_INSERT(tree_head_length, &Proc0.va_root_len, new_node);
-		}
-		// all checks are passed, insert new region into the tree
-		//REGION_INSERT(tree_head_addr, &Proc0.va_root_addr, &n);
+	if(ProcessVAAlloc(pProc, addr, pages_num, pError) != KERNEL_OK){
+		LogDebug("SysAllocPage error, ProcessVAAlloc failed.");
+		error = SYS_NOT_ENOUGH_FREE_SPACE;
+		goto on_error;
 	}
-	// free old node 
-	kfree(res);
 	
-	ret = MapPagesToProcessVirtual(addr, pages_num, tr_flags, Proc0.pPDE, Proc0.ppPTE);
+	ret = MapPagesToProcessVirtual(addr, pages_num, tr_flags, &pProc->PagingInfo);
 	// TODO: fallback if MapPages fails with not enough pages
+	//atomic_flag_clear(&pProc->va_lock_flag);
 
 	return ret;
 
@@ -258,6 +117,7 @@ on_error:
 		// user don't want error code
 		return (uint32_t)NULL;
 	}
+	// TODO: check for pError address existing in process VA
 	if(CheckAddressRange((addr_t)pError, sizeof(uint32_t)) != KERNEL_OK){
 		// shutdown process here
 		LogDebug("SysAllocPage error, user sent invalid pError pointer.");
@@ -289,7 +149,7 @@ uint32_t SysChangePageFlags(uint32_t* pParams)
 		return KERNEL_ERROR;
 	}
 
-	ret = ChangePageFlags(addr, pages_num, tr_flags, Proc0.ppPTE);
+	ret = ChangePageFlags(addr, pages_num, tr_flags, &Core.pCurrProc->PagingInfo);
 
 	return KERNEL_OK;
 }
@@ -309,7 +169,7 @@ uint32_t SysCreateThread(uint32_t* pParams)
 	// return to user
 	asm("movl %0, %%edx\n"
 		"movl %1, %%ecx\n" // emulation of ret
-		"sysexit\n" : : "m" (pParams[1]), "m" (Proc0.pStack));
+		"sysexit\n" : : "m" (pParams[1]), "m" (Core.pCurrProc->pStack));
 
 
 	return KERNEL_OK;
@@ -359,11 +219,42 @@ void __attribute__((naked)) SysCall()
 
 uint32_t CreateProcess()
 {
+	LogDebug("CreateProcess");
+	struct Proc* pProc;
 
+	pProc = mrgl_middlefin_alloc(sizeof(struct Proc));
+	if(pProc == NULL){
+		return KERNEL_ERROR;
+	}
 
+	memset(pProc, 0, sizeof(struct Proc));
+	if(ProcessVAAllocInit(pProc) != KERNEL_OK){
+		return KERNEL_ERROR;
+	}
 
+	pProc->PagingInfo.pPDE = (uint32_t*)kmmap(1);
+	memset(pProc->PagingInfo.pPDE, 0, KERNEL_PAGE_SIZE);
+	pProc->PagingInfo.ppPTE = (uint32_t**)kmmap(1);
+	memset(pProc->PagingInfo.ppPTE, 0, KERNEL_PAGE_SIZE);
+	
+	CopyKernelASToProcess(&pProc->PagingInfo);
+	// alloc 2 pages in process VA for elf loader and its stack
+	if(ProcessVAAlloc(pProc, KERNEL_BASE - 2 * KERNEL_PAGE_SIZE, 2, NULL) != KERNEL_OK){
+		return KERNEL_ERROR;
+	}
+	// map 1 page from pool for elf loader stack
+	MapPagesToProcessVirtual(KERNEL_BASE - 1 * KERNEL_PAGE_SIZE, 1, (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE), &pProc->PagingInfo);
+	pProc->pStack = 0xfe000000 - 16;
+	//LogDebug("node: 0x%08x, start: 0x%08x, end: 0x%08x", (uint32_t)free_space, free_space->start, free_space->end);
+	// map elf loader at 0xfe000000 - elf_loader_size in pages
+	addr_t elf_loader_phys_addr = GetKernelPhysAddr(KERNEL_ELF_LOADER_BASE);
+	
+	pProc->PagingInfo.ppPTE[1024 - 8 - 1][1022] = elf_loader_phys_addr | KERNEL_PAGE_USER_CODE; // elf loader code
+	
+	pProc->eip = 0xfe000000 - 2 * KERNEL_PAGE_SIZE_X86;
 
-	return 0;
+	Core.pCurrProc = pProc;
+	return KERNEL_OK;
 }
 
 extern struct TSSSegment TSS;
@@ -371,7 +262,7 @@ extern struct TSSSegment TSS;
 uint32_t SetProcess(struct Proc* pProc)
 {
 	// set virtual address space
-	wrcr(X86_CR3, GetKernelPhysAddr((addr_t)pProc->pPDE));
+	wrcr(X86_CR3, GetKernelPhysAddr((addr_t)pProc->PagingInfo.pPDE));
 	// set kernel stack
 	asm("movl %%esp, %0" : "=m" (TSS.ESP0));
 	// push 3 parameters for ELF loader
@@ -400,48 +291,19 @@ uint32_t SetProcess(struct Proc* pProc)
 
 uint32_t SysCallInit()
 {
-
-
 	wrmsr(IA32_SYSENTER_CS, SEGMENT_KERNEL_CODE << 3);
 	wrmsr(IA32_SYSENTER_EIP, (uint32_t)SysCall);
 	wrmsr(IA32_SYSENTER_ESP, (uint32_t)(KERNEL_STACK_BASE + KERNEL_STACK_SIZE_X86 - 16));
 	
-	memset(ProcPDE, 0, sizeof(ProcPDE));
-	memset(pProcPTE, 0, sizeof(pProcPTE));
-
-	Proc0.pPDE = ProcPDE;
-	Proc0.ppPTE = pProcPTE;
-
-	//Proc0.ppPTE[0] = ProcPTE0;
-	//Proc0.pPDE[0] = GetKernelPhysAddr((addr_t)Proc0.ppPTE[0]) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
-	Proc0.ppPTE[1024 - 8 - 1] = ProcPTE1;
-	Proc0.pPDE[1024 - 8 - 1] = GetKernelPhysAddr((addr_t)Proc0.ppPTE[1024 - 8 - 1]) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
-	
-	CopyKernelASToProcess(ProcPDE);
-
-	REGION_INIT(&Proc0.va_root_addr);
-	REGION_INIT(&Proc0.va_root_len);
-	struct region_node* free_space = (struct region_node*)kmalloc(sizeof(struct region_node));
-	
-	free_space->start = 0x00000000;
-	free_space->end = KERNEL_BASE_X86 - ALIGN_TO_UP(KERNEL_ELF_LOADER_SIZE_X86, KERNEL_PAGE_SIZE_X86);
-	REGION_INSERT(tree_head_addr, &Proc0.va_root_addr, free_space);
-	REGION_INSERT(tree_head_length, &Proc0.va_root_len, free_space);
-	//LogDebug("node: 0x%08x, start: 0x%08x, end: 0x%08x", (uint32_t)free_space, free_space->start, free_space->end);
-	// map elf loader at 0xfe000000 - elf_loader_size in pages
-	addr_t elf_loader_phys_addr = GetKernelPhysAddr(KERNEL_ELF_LOADER_BASE);
-	uint32_t stack;
-	
-	AllocPagesGlobal(&stack, 1);
-
-	Proc0.ppPTE[1024 - 8 - 1][1022] = elf_loader_phys_addr | KERNEL_PAGE_USER_CODE; // elf loader code
-	Proc0.ppPTE[1024 - 8 - 1][1023] = stack | KERNEL_PAGE_USER_DATA; // elf stack
-	Proc0.pStack = 0xfe000000 - 16;
-	Proc0.eip = 0xfe000000 - 2 * KERNEL_PAGE_SIZE_X86;
 
 	
+	if(CreateProcess() != KERNEL_OK){
+		LogDebug("CreateProcess failed.");
+		__asm hlt;
+	}
+	
 
-	SetProcess(&Proc0);
+	SetProcess(Core.pCurrProc);
 
 	return KERNEL_OK;
 }

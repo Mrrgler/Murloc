@@ -23,14 +23,20 @@ void KernelVAAllocInit(void);
 addr_t KernelVAAlloc(uint32_t pages_num);
 uint32_t KernelVAFree(addr_t addr, uint32_t pages_num);
 // Kernel paging functions
-uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t** ppPTE);
+addr_t GetKernelPhysAddr(addr_t virtual_addr);
+void MapPhysMemToKernelVirtualCont(addr_t phys_addr, uint32_t pages_num, addr_t virtual_addr, uint32_t flags);
+uint32_t MapPagesToKernelVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags);
+void UnMapPhysMemFromKernelVirtualCont(addr_t* phys_addr, uint32_t pages_num, addr_t virtual_addr);
+void UnMapPagesFromKernelVirtual(addr_t virtual_addr, uint32_t pages_num);
+
+uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct va_paging_info* pPagesInfo);
 uint32_t TranslateMappingFlags(uint32_t flags);
 void MapPhysMemToKernelVirtualCont(addr_t phys_addr, uint32_t pages_num, addr_t virtual_addr, uint32_t flags);
-uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t* pPDE, uint32_t** ppPTE);
+uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct va_paging_info* pPageInfo);
 void MapPhysMemToVirtual(uint32_t* pAddr, uint32_t pages_num, addr_t virtual_addr, uint32_t* pPDE, uint32_t** pPTE, uint32_t flags);
 addr_t GetPhysAddr(addr_t virtual_addr, uint32_t** pPTE);
 addr_t GetKernelPhysAddr(addr_t virtual_addr);
-void CopyKernelASToProcess(uint32_t* pPDE);
+void CopyKernelASToProcess(struct va_paging_info* pPagesInfo);
 uint32_t AllocPagesGlobal(uint32_t* pBuf, uint32_t num);
 uint32_t FreePagesGlobal(uint32_t* pBuf, uint32_t num);
 void* kmmap(uint32_t pages_num);
