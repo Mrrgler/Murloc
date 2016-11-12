@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 
+#define KERNEL
 #define KERNEL_DEBUG
+#define KERNEL_SMT
 
 #if defined(X86)
 //#include <intrin.h>
@@ -37,22 +39,43 @@ enum KERNEL_SUBSYSTEM_ERROR_CODES{
 	KERNEL_SUBSYS_INTERRUPTS,
 };
 
-struct va_paging_info{
+struct pte_add_info{
+	uint16_t allocated_page_count;
+}__attribute__((packed));
+
+struct vma_paging_info{
 	uint32_t* pPDE;
 	uint32_t** ppPTE;
+	struct pte_add_info* pAddInfo;
+};
+
+struct ProcVMA{
+	atomic_flag vma_lock_flag;
+	struct vma_paging_info PagingInfo;
+	uint32_t page_allocated;
+};
+
+struct Thread{
+	// platform independent
+	uint32_t tid;
+	struct Proc* pParentProc;
+
+	uint32_t state;
+	// platform dependent
+	struct thread_context* pThreadCtx;
 };
 
 struct Proc{
 	// platform independent
 	uint32_t pid;
 
+	struct Thread* ppThreads[8];
+	uint32_t threads_num;
+
 	struct mrgl_alloc_header VAHeader;
 	struct mrgl_sizelist_node* VASizelistTable[128];
-	atomic_flag va_lock_flag;
 	// platform dependent
-	struct va_paging_info PagingInfo;
-	addr_t pStack;
-	addr_t eip;
+	struct ProcVMA VMA;
 };
 
 struct kernel_core{
@@ -80,6 +103,7 @@ extern "C" void* __cdecl memset(void* pBuf, uint8_t value, addr_t size);
 #define FILL_BITS(x)\
 	((1 << (x)) - 1)
 
+#define ALIGN_DOWN_TO_PAGE(x) (ALIGN_TO_DOWN(x, KERNEL_PAGE_SIZE_X86))
 #define ALIGN_UP_TO_PAGE(x) (ALIGN_TO_UP(x, KERNEL_PAGE_SIZE_X86))
 
 #define SIZE_IN_PAGES(x)\

@@ -59,3 +59,20 @@ inline static void mrgl_tinyfin_free(struct mrgl_tinyfin_header* pHeader, void* 
 	pHeader->tinyfin_free_table[size_index] = pBlock;
 	//stats.tinyfin = stats.tinyfin + 1;
 }
+
+inline static bool mrgl_tinyfin_check_amount(struct mrgl_tinyfin_header* pHeader, uint32_t blocks_num, uint32_t size)
+{
+	uint32_t size_index = size / MRGL_ALLOC_TINYFIN_GRANULARITY - 1;
+	struct tinyfin_block_header* pBlock;
+
+	pBlock = pHeader->tinyfin_free_table[size_index];
+
+	for(uint32_t i = 0; i < blocks_num; i++){
+		if(pBlock == NULL){
+			return false;
+		}
+		pBlock = pBlock->pNextFree;
+	}
+
+	return true;
+}

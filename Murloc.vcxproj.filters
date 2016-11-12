@@ -78,6 +78,12 @@
     <ClCompile Include="MemoryManager\ProcessVAAlloc.c">
       <Filter>Source Files\MemoryManager</Filter>
     </ClCompile>
+    <ClCompile Include="Thread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="x86\cpu_x86.c">
+      <Filter>Source Files\x86</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Kernel.h">
@@ -133,6 +139,15 @@
     </ClInclude>
     <ClInclude Include="Util\kernel_assert.h">
       <Filter>Source Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SysCall.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\kernel_locks.h">
+      <Filter>Source Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="x86\cpu_x86.h">
+      <Filter>Source Files\x86</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -91,6 +91,9 @@ extern uint32_t KPTE[8][1024] __attribute__((aligned(KERNEL_PAGE_SIZE_X86)));
 // some black magic here
 // actually no magic, C preprocessor doesn't want to metaprogram constants
 //#pragma clang diagnostic ignored "-Wmacro-redefined"
+#define PROCESS_ELF_LOADER_STACK	(KERNEL_BASE - KERNEL_PAGE_SIZE)
+#define PROCESS_ELF_LOADER_BASE		(PROCESS_ELF_LOADER_STACK - ALIGN_UP_TO_PAGE(KERNEL_ELF_LOADER_SIZE_X86))
+
 #define KERNEL_STACK_BASE			(KERNEL_BASE_X86 + KERNEL_SIZE_X86)
 #define KERNEL_VA_TOP_BASE			(KERNEL_STACK_BASE + KERNEL_STACK_SIZE_X86)
 #define KERNEL_INIT_RAM_IMAGE_SIZE	(ALIGN_UP_TO_PAGE(KERNEL_SIZE_X86) + ALIGN_UP_TO_PAGE(KERNEL_ELF_LOADER_SIZE_X86) + ALIGN_UP_TO_PAGE(KERNEL_FS_DRIVER_SIZE_X86))
@@ -110,3 +113,5 @@ extern uint32_t KPTE[8][1024] __attribute__((aligned(KERNEL_PAGE_SIZE_X86)));
 #define VGA_MEMORY_BASE_X86		(KERNEL_FS_DRIVER_BASE - VGA_MEMORY_SIZE_X86)
 //#pragma clang diagnostic warning "-Wmacro-redefined"
 
+#define ADDR_TO_PTE(addr)	((addr) >> 22)
+#define ADDR_TO_PAGE(addr)	(((addr) >> 12) & 0x3ff)

@@ -99,11 +99,14 @@
 	"MemoryManager.h"
 	"post_defines_x86.h"
 
-1478530961 source:/media/sf_OS/Murloc/x86/SysCall_x86.c
+1478932874 source:/media/sf_OS/Murloc/x86/SysCall_x86.c
 	<Kernel.h>
 	<Util/kstring.h>
+	<Util/kernel_locks.h>
 	<MemoryManager/MemoryManager.h>
 	<MemoryManager/x86/MemoryManager_x86.h>
+	<SysCall.h>
+	<x86/cpu_x86.h>
 	<x86/post_defines_x86.h>
 
 1456862279 /media/sf_OS/Murloc/Common/nedtrie.h
@@ -115,37 +118,39 @@
 
 1476822888 /media/sf_OS/Murloc/MemoryManager/MemoryManager.h
 
-1478236000 /media/sf_OS/Murloc/MemoryManager/x86/MemoryManager_x86.h
+1478898163 /media/sf_OS/Murloc/MemoryManager/x86/MemoryManager_x86.h
 
-1478523774 source:/media/sf_OS/Murloc/MemoryManager/KernelVAAlloc.c
+1478880271 source:/media/sf_OS/Murloc/MemoryManager/KernelVAAlloc.c
 	<Kernel.h>
 	<Util/kstring.h>
 	<MemoryManager/MemoryManager.h>
 	<MemoryManager/x86/MemoryManager_x86.h>
 	<x86/post_defines_x86.h>
 
-1478505786 source:/media/sf_OS/Murloc/MemoryManager/MemoryManager.c
+1478725331 source:/media/sf_OS/Murloc/MemoryManager/MemoryManager.c
 	<Kernel.h>
 	<Util/kstring.h>
 	<MemoryManager/MemoryManager.h>
 	<MemoryManager/x86/MemoryManager_x86.h>
 	<x86/post_defines_x86.h>
 
-1478511949 source:/media/sf_OS/Murloc/MemoryManager/x86/KernelVA_x86.c
+1478769213 source:/media/sf_OS/Murloc/MemoryManager/x86/KernelVA_x86.c
 	<Kernel.h>
 	<Util/kstring.h>
 	<MemoryManager/MemoryManager.h>
 	"MemoryManager_x86.h"
+	<Util/kernel_locks.h>
 	<x86/post_defines_x86.h>
 
-1478523766 source:/media/sf_OS/Murloc/MemoryManager/x86/MemoryManager_x86.c
+1478904760 source:/media/sf_OS/Murloc/MemoryManager/x86/MemoryManager_x86.c
 	<Kernel.h>
 	<Util/kstring.h>
 	<MemoryManager/MemoryManager.h>
 	"MemoryManager_x86.h"
+	<Util/kernel_locks.h>
 	<x86/post_defines_x86.h>
 
-1478498950 /media/sf_OS/Murloc//Kernel.h
+1478905349 /media/sf_OS/Murloc//Kernel.h
 	<stdint.h>
 	<stdbool.h>
 	<stdatomic.h>
@@ -154,7 +159,7 @@
 	<Util/kernel_assert.h>
 	<MemoryManager/mrgl_alloc.h>
 
-1478089650 /media/sf_OS/Murloc//x86/defines_x86.h
+1478831150 /media/sf_OS/Murloc//x86/defines_x86.h
 
 1453050492 /media/sf_OS/Murloc//x86/Log_x86.h
 
@@ -164,11 +169,11 @@
 
 1425969189 /media/sf_OS/Murloc//x86/Init_x86.h
 
-1478530968 /media/sf_OS/Murloc//x86/post_defines_x86.h
+1478935488 /media/sf_OS/Murloc//x86/post_defines_x86.h
 
-1478496168 /media/sf_OS/Murloc//MemoryManager/MemoryManager.h
+1478831274 /media/sf_OS/Murloc//MemoryManager/MemoryManager.h
 
-1478236000 /media/sf_OS/Murloc//MemoryManager/x86/MemoryManager_x86.h
+1478898163 /media/sf_OS/Murloc//MemoryManager/x86/MemoryManager_x86.h
 
 1455522262 /media/sf_OS/Murloc//Common/kmalloc.h
 	<stddef.h>
@@ -204,7 +209,7 @@
 
 1477747451 /media/sf_OS/Murloc/Util/mrgl_trees.h
 
-1478526615 /media/sf_OS/Murloc//MemoryManager/mrgl_alloc.h
+1478880218 /media/sf_OS/Murloc//MemoryManager/mrgl_alloc.h
 	<stdint.h>
 	"mrgl_trees.h"
 	"mrgl_sizelist.h"
@@ -214,7 +219,7 @@
 
 1477755149 /media/sf_OS/Murloc//MemoryManager/mrgl_sizelist.h
 
-1478526757 /media/sf_OS/Murloc//MemoryManager/mrgl_tinyfin_alloc.h
+1478828133 /media/sf_OS/Murloc//MemoryManager/mrgl_tinyfin_alloc.h
 	"mrgl_alloc_config.h"
 
 1478508775 /media/sf_OS/Murloc//MemoryManager/mrgl_alloc_config.h
@@ -222,7 +227,7 @@
 	<Util/kstring.h>
 	<Util/kernel_assert.h>
 
-1478524731 source:/media/sf_OS/Murloc/MemoryManager/mrgl_alloc.c
+1478879862 source:/media/sf_OS/Murloc/MemoryManager/mrgl_alloc.c
 	<stdint.h>
 	<stdbool.h>
 	<stddef.h>
@@ -237,13 +242,13 @@
 
 1477755149 /media/sf_OS/Murloc/MemoryManager/mrgl_sizelist.h
 
-1478526615 /media/sf_OS/Murloc/MemoryManager/mrgl_alloc.h
+1478880218 /media/sf_OS/Murloc/MemoryManager/mrgl_alloc.h
 	<stdint.h>
 	"mrgl_trees.h"
 	"mrgl_sizelist.h"
 	"mrgl_tinyfin_alloc.h"
 
-1478526757 /media/sf_OS/Murloc/MemoryManager/mrgl_tinyfin_alloc.h
+1478828133 /media/sf_OS/Murloc/MemoryManager/mrgl_tinyfin_alloc.h
 	"mrgl_alloc_config.h"
 
 1478508775 /media/sf_OS/Murloc/MemoryManager/mrgl_alloc_config.h
@@ -265,9 +270,29 @@
 	"mrgl_trees.h"
 	"mrgl_alloc_config.h"
 
-1478523663 source:/media/sf_OS/Murloc/MemoryManager/ProcessVAAlloc.c
+1478901295 source:/media/sf_OS/Murloc/MemoryManager/ProcessVAAlloc.c
 	<Kernel.h>
 	<MemoryManager/x86/MemoryManager_x86.h>
+	<Util/kernel_locks.h>
 
 1478508280 /media/sf_OS/Murloc//Util/kernel_assert.h
+
+1478768883 /media/sf_OS/Murloc//Util/kernel_locks.h
+
+1478931229 source:/media/sf_OS/Murloc/x86/cpu_x86.c
+	<Kernel.h>
+	<MemoryManager/x86/MemoryManager_x86.h>
+	<x86/cpu_x86.h>
+
+1478902640 /media/sf_OS/Murloc//x86/cpu_x86.h
+
+1478935471 /media/sf_OS/Murloc//SysCall.h
+
+1478906932 source:/media/sf_OS/Murloc/Thread.c
+	<Kernel.h>
+	<MemoryManager/MemoryManager.h>
+	<MemoryManager/x86/MemoryManager_x86.h>
+	<SysCall.h>
+	<x86/cpu_x86.h>
+	<x86/post_defines_x86.h>
 

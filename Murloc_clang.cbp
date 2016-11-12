@@ -32,7 +32,7 @@
 		<Compiler>
 			<Add option="-fms-extensions" />
 			<Add option="-Wall" />
-			<Add option="-m32 -nostdlib -ffreestanding -Wno-missing-braces -masm=intel" />
+			<Add option="-m32 -nostdlib -ffreestanding -Wno-missing-braces -masm=intel -mno-red-zone" />
 			<Add option="-DX86" />
 			<Add directory="/media/sf_OS/Murloc/" />
 		</Compiler>
@@ -80,6 +80,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="MemoryManager/x86/MemoryManager_x86.h" />
+		<Unit filename="Thread.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="Util/kstring.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -99,6 +102,10 @@
 		<Unit filename="x86/SysCall_x86.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="x86/cpu_x86.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="x86/cpu_x86.h" />
 		<Unit filename="x86/defines_x86.h" />
 		<Unit filename="x86/kmalloc_x86.c">
 			<Option compilerVar="CC" />

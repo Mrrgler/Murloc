@@ -150,7 +150,9 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
     <ClCompile Include="MemoryManager\ProcessVAAlloc.c" />
     <ClCompile Include="MemoryManager\x86\KernelVA_x86.c" />
     <ClCompile Include="MemoryManager\x86\MemoryManager_x86.c" />
+    <ClCompile Include="Thread.c" />
     <ClCompile Include="Util\kstring.c" />
+    <ClCompile Include="x86\cpu_x86.c" />
     <ClCompile Include="x86\Init_x86.c" />
     <ClCompile Include="x86\Interrupt.c" />
     <ClCompile Include="x86\kmalloc_x86.c" />
@@ -168,8 +170,11 @@ copy /Y ..\mbr.bin ..\mbr.img</Command>
     <ClInclude Include="MemoryManager\mrgl_tinyfin_alloc.h" />
     <ClInclude Include="MemoryManager\mrgl_trees.h" />
     <ClInclude Include="MemoryManager\x86\MemoryManager_x86.h" />
+    <ClInclude Include="SysCall.h" />
     <ClInclude Include="Util\kernel_assert.h" />
+    <ClInclude Include="Util\kernel_locks.h" />
     <ClInclude Include="Util\kstring.h" />
+    <ClInclude Include="x86\cpu_x86.h" />
     <ClInclude Include="x86\defines_x86.h" />
     <ClInclude Include="x86\IDT_and_Handlers_x86.h" />
     <ClInclude Include="x86\Init_x86.h" />

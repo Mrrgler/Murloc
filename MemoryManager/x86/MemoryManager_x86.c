@@ -2,6 +2,7 @@
 #include <Util/kstring.h>
 #include <MemoryManager/MemoryManager.h>
 #include "MemoryManager_x86.h"
+#include <Util/kernel_locks.h>
 #include <x86/post_defines_x86.h>
 
 
@@ -10,7 +11,7 @@
 #endif
 
 extern struct GlobalMemoryPoolHeader GlobalMemoryPool;
-extern atomic_flag kernel_va_map_lock_flag;
+extern atomic_flag kernel_vma_lock_flag;
 
 #pragma pack(push, 8) // 8 byte align
 static struct SegmentDescriptor pGDT[] = {
@@ -139,7 +140,7 @@ int MemTableInit(struct E820MemInfo* pInfo, uint32_t InfoSize)
 		}
 	}
 	// set initial state of lock_flag to false
-	atomic_flag_clear(&GlobalMemoryPool.lock_flag);
+	kernel_unlock(&GlobalMemoryPool.lock_flag);
 
 	if(GlobalMemoryPool.size == 0){
 		return KERNEL_ERROR;
@@ -155,7 +156,7 @@ addr_t GetPhysAddr(addr_t virtual_addr, uint32_t** pPTE)
 	return pPTE[virtual_addr >> 22][pte_index] & 0xfffff000 + (virtual_addr & 0xfff);
 }
 
-uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct va_paging_info* pPagesInfo)
+uint32_t ChangePageFlags(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct vma_paging_info* pPagesInfo)
 {
 	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
 	// count PTE and check if there is non present
@@ -196,7 +197,7 @@ uint32_t TranslateMappingFlags(uint32_t flags)
 }
 
 // copies kernel virtual address space to top of the virtual address space of chosen process
-void CopyKernelASToProcess(struct va_paging_info* pPagesInfo)
+void CopyKernelASToProcess(struct vma_paging_info* pPagesInfo)
 {
 	addr_t first_pte = KPDE[1024 - 8];
 
@@ -209,71 +210,80 @@ void CopyKernelASToProcess(struct va_paging_info* pPagesInfo)
 // additional level of indirection through ppPTE
 uint32_t MapPagesToPTEs(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, uint32_t** ppPTE)
 {
-	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
-	// lock global pages pool
-	while(atomic_flag_test_and_set(&GlobalMemoryPool.lock_flag) == true){
-		// wait
-	}
-//	kernel_va_map_lock_flag = 1;
-	// check if we have enough pages
-	if(pages_num > GlobalMemoryPool.free_pages){
-		// not enough memory
-		// release locks
-		atomic_flag_clear(&GlobalMemoryPool.lock_flag);
-	//	kernel_va_map_lock_flag = 0;
-		return KERNEL_NOT_ENOUGH_MEMORY;
-	}
 	// fill kernel pte
 	for(uint32_t i = 0; i < pages_num; i++){
 		addr_t addr = virtual_addr + i * KERNEL_PAGE_SIZE_X86;
 		addr_t p_addr = GlobalMemoryPool.pBegin[GlobalMemoryPool.free_pages - 1 - i];
-		// if page already present return error
-		if(ppPTE[addr >> 22][(addr >> 12) & 0x3ff] != 0){
-			GlobalMemoryPool.free_pages = GlobalMemoryPool.free_pages - i;
-			// release locks
-			atomic_flag_clear(&GlobalMemoryPool.lock_flag);
-		//	kernel_va_map_lock_flag = 0;
-			return KERNEL_ERROR_ALREADY_MAPPED;
-		}
+		
+		kernel_assert(ppPTE[ADDR_TO_PTE(addr)][ADDR_TO_PAGE(addr)] == 0, "Page already present!");
 		ppPTE[addr >> 22][(addr >> 12) & 0x3ff] = (p_addr & 0xfffff000) | flags;
 	}
 	GlobalMemoryPool.free_pages = GlobalMemoryPool.free_pages - pages_num;
-	// release locks
-	atomic_flag_clear(&GlobalMemoryPool.lock_flag);
-//	kernel_va_map_lock_flag = 0;
 
 	return KERNEL_OK;
 }
 
-
-
 //
 // this function assumes that virtual_addr already aligned to page
 // no thread checks
-uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct va_paging_info* pPagesInfo)
+uint32_t MapPagesToProcessVirtual(addr_t virtual_addr, uint32_t pages_num, uint32_t flags, struct ProcVMA* pVMAInfo)
 {
-	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
 	//LogDebug("MapPagesToProcessVirtual addr: 0x%08x, pages_num: %00u, flags: 0x%04x", virtual_addr, pages_num, flags);
+	kernel_assert((flags & 0xfffffe00) == 0, "Error! Invalid flags.");
+	kernel_assert((virtual_addr % KERNEL_PAGE_SIZE) == 0, "Unaligned virtual_addr"); 
 	// count PTE and check if we need allocate additional ptes
+	struct vma_paging_info* pPagesInfo = &pVMAInfo->PagingInfo;
 	addr_t pte_start = ALIGN_TO_DOWN(virtual_addr, KERNEL_PTE_VA_SIZE_X86);
 	addr_t pte_end	 = ALIGN_TO_UP(virtual_addr + KERNEL_PAGE_SIZE_X86 * pages_num, KERNEL_PTE_VA_SIZE_X86);
 	uint32_t pte_offset = pte_start / KERNEL_PTE_VA_SIZE_X86;
 	uint32_t pte_num = (pte_end - pte_start) / KERNEL_PTE_VA_SIZE_X86;
-	
+
 	for(uint32_t i = 0; i < pte_num; i++){
 		if(pPagesInfo->ppPTE[pte_offset + i] == NULL){
 			// we need to alloc new PTE and map it into process PDE
 			pPagesInfo->ppPTE[pte_offset + i] = (uint32_t*)kmmap(1);
 			if(pPagesInfo->ppPTE[pte_offset + i] == NULL){
-				LogDebug("Fail.");
-				return KERNEL_ERROR;
+				pte_num = i + 1;
+				goto on_error;
 			}
+
 			memset(pPagesInfo->ppPTE[pte_offset + i], 0, KERNEL_PAGE_SIZE_X86);
 			pPagesInfo->pPDE[pte_offset + i] = GetKernelPhysAddr((addr_t)(&pPagesInfo->ppPTE[pte_offset + i][0])) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
 		}
 	}
+	// lock page pool and check if we have enough pages
+	kernel_lock(&GlobalMemoryPool.lock_flag);
+	if(pages_num > GlobalMemoryPool.free_pages){
+		// release locks
+		kernel_unlock(&GlobalMemoryPool.lock_flag);
+		goto on_error;
+	}
+	// count pages
+	uint32_t page_begin = ADDR_TO_PAGE(virtual_addr);
+	uint32_t page_end = KERNEL_PTE_PAGE_NUM_X86;
+
+	for(uint32_t i = 0; i < pte_num; i++){
+		pPagesInfo->pAddInfo[pte_offset + i].allocated_page_count = pPagesInfo->pAddInfo[pte_offset + i].allocated_page_count + page_end - page_begin;
+		page_begin = 0;
+
+		if(i == (pte_num - 1)){
+			page_end = ADDR_TO_PAGE(virtual_addr + pages_num * KERNEL_PAGE_SIZE);
+		}
+	}
 	// map pages into the pte's
-	return MapPagesToPTEs(virtual_addr, pages_num, flags, pPagesInfo->ppPTE);
+	MapPagesToPTEs(virtual_addr, pages_num, flags, pPagesInfo->ppPTE);
+	// release locks
+	kernel_unlock(&GlobalMemoryPool.lock_flag);
+	pVMAInfo->page_allocated = pVMAInfo->page_allocated + pages_num;
+	return KERNEL_OK;
+on_error:
+	// free allocations that were made during this call
+	for(uint32_t i = 0; i < pte_num; i++){
+		if(pPagesInfo->ppPTE[pte_offset + i] != NULL && pPagesInfo->pAddInfo[pte_offset + i].allocated_page_count == 0){
+			kmunmap(pPagesInfo->ppPTE[pte_offset + i], 1);
+		}
+	}
+	return NULL;
 }
 
 // non working
@@ -346,8 +356,8 @@ uint32_t MemoryManagerInit(void* pInfo, uint32_t InfoSize)
 	for(uint32_t i = 0; i < 8; i++){ // one iteration - one page table entry, 1024 pages of 4Kb, 4Mb in total
 		KPDE[1024 - 8 + i] = (((addr_t)&KPTE[i] - KERNEL_BASE_X86 + KERNEL_PHYS_BASE_X86) & 0xfffff000) | (KERNEL_PAGE_PRESENT | KERNEL_PAGE_USER | KERNEL_PAGE_READWRITE);
 	}
-	// set kernel_va_map_lock_flag to initial state to false
-	atomic_flag_clear(&kernel_va_map_lock_flag);
+	// set kernel_vma_lock_flag to initial state to false
+	kernel_unlock(&kernel_vma_lock_flag);
 	// map physical pages with kernel and stuff to kernel part (upper 32Mb) of virtual address space
 	LogDebug("Mapping kernel");
 	//MapPhysMemToVirtual(&addr, 1, KERNEL_BASE_X86 + i * KERNEL_PAGE_SIZE_X86, KPDE, pKPTE, KERNEL_PAGE_SUPERVISOR_X86, KERNEL_PAGE_READWRITE);

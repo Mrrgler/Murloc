@@ -64,4 +64,5 @@ void kmunmap(void* pMem, uint32_t pages_num)
 {
 	UnMapPagesFromKernelVirtual((addr_t)pMem, pages_num);
 	KernelVAFree((addr_t)pMem, pages_num);
+	// TODO: invalidate page
 }

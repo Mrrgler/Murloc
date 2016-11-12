@@ -122,32 +122,12 @@ void print_addrlist()
 	}
 }*/
 
-void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_tree_node* pAddrNode, struct mrgl_big_block* pNewBlock)
+void mrgl_insert_free_block(struct mrgl_alloc_header* pHeader, struct mrgl_big_block* pNewBlock, struct mrgl_big_block* pLeft, struct mrgl_big_block* pRight)
 {
-	struct mrgl_big_block* pBlock, *pLastBlock;
-	struct mrgl_big_block* pLeft, *pRight;
+	struct mrgl_big_block* pBlock;
 	bool HugLeft = false, HugRight = false;
 
-	pBlock = (struct mrgl_big_block*)pAddrNode;
 	// try to coalesce
-	if(pBlock->AddrNode.key < pNewBlock->AddrNode.key){
-		pLastBlock = pBlock;
-		while(pBlock != NULL && pBlock->AddrNode.key < pNewBlock->AddrNode.key){
-			pLastBlock = pBlock;
-			pBlock = pBlock->pNext;
-		}
-		pLeft = pLastBlock;
-		pRight = pLastBlock->pNext;
-	}else{
-		pLastBlock = pBlock;
-		while(pBlock != NULL && (pNewBlock->AddrNode.key + pNewBlock->SizeNode.size) <= pBlock->AddrNode.key){
-			pLastBlock = pBlock;
-			pBlock = pBlock->pPrev;
-		}
-		pLeft = pLastBlock->pPrev;
-		pRight = pLastBlock;
-	}
-
 	if(pLeft != NULL && (pLeft->AddrNode.key + pLeft->SizeNode.size) == pNewBlock->AddrNode.key){
 		HugLeft = true;
 	}
@@ -250,9 +230,12 @@ void* mrgl_middlefin_alloc(uint32_t size)
 			//check_tree();
 		}else{
 			// we have some free blocks, just don't have suitable size
+			struct mrgl_big_block* pLeft, *pRight;
+
 			pBlock->AddrNode.key = (uint32_t)pBlock;
 			pBlock->SizeNode.size = MRGL_BIG_POOL_SIZE;
-			mrgl_insert_free_block(&middlefin_alloc_header, pAddrNode, pBlock);
+			mrgl_find_left_and_right(pAddrNode, pBlock, &pLeft, &pRight);
+			mrgl_insert_free_block(&middlefin_alloc_header, pBlock, pLeft, pRight);
 			//check_tree();
 			pBlock = get_block_from_size_node(mrgl_sizelist_find(&middlefin_alloc_header.SizeHeader, size));
 		}
@@ -307,8 +290,11 @@ void mrgl_middlefin_free(void* pMem, uint32_t size)
 		mrgl_tree_insert(&middlefin_alloc_header.AddrHeader, (uint32_t)pBlock, &pBlock->AddrNode);
 		mrgl_sizelist_insert(&middlefin_alloc_header.SizeHeader, &pBlock->SizeNode);
 	}else{
+		struct mrgl_big_block* pLeft, *pRight;
+
 		pBlock->AddrNode.key = (uint32_t)pBlock;
-		mrgl_insert_free_block(&middlefin_alloc_header, pAddrNode, pBlock);
+		mrgl_find_left_and_right(pAddrNode, pBlock, &pLeft, &pRight);
+		mrgl_insert_free_block(&middlefin_alloc_header, pBlock, pLeft, pRight);
 	}
 }
 

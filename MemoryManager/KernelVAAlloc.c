@@ -141,10 +141,12 @@ uint32_t KernelVAFree(addr_t addr, uint32_t pages_num)
 		mrgl_tree_insert(&kernel_va_alloc_header.AddrHeader, convert_addr_to(addr), &pBlock->AddrNode);
 		mrgl_sizelist_insert(&kernel_va_alloc_header.SizeHeader, &pBlock->SizeNode);
 	}else{
-		pBlock->AddrNode.key = convert_addr_to(addr);
-		mrgl_insert_free_block(&kernel_va_alloc_header, pNode, pBlock);
-	}
+		struct mrgl_big_block* pLeft, *pRight;
 
+		pBlock->AddrNode.key = convert_addr_to(addr);
+		mrgl_find_left_and_right(pNode, pBlock, &pLeft, &pRight);
+		mrgl_insert_free_block(&kernel_va_alloc_header, pBlock, pLeft, pRight);
+	}
 
 	return KERNEL_OK;
 }

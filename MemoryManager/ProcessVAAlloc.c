@@ -1,10 +1,10 @@
 #include <Kernel.h>
 #include <MemoryManager/x86/MemoryManager_x86.h>
+#include <Util/kernel_locks.h>
 
 extern struct kernel_core Core;
 
-#define PROCESS_VA_START	(0x00000000 + KERNEL_PAGE_SIZE)
-#define PROCESS_VA_END		(KERNEL_BASE)
+
 
 
 inline static addr_t convert_addr_to(addr_t addr)
@@ -30,7 +30,7 @@ uint32_t ProcessVAAllocInit(struct Proc* pProc)
 	struct mrgl_alloc_header* pHeader = &pProc->VAHeader;
 
 	//pProc->va_lock_flag = ATOMIC_FLAG_INIT;
-	atomic_flag_clear(&pProc->va_lock_flag);
+	kernel_unlock(&pProc->VMA.vma_lock_flag);
 	// clear header
 	memset(&pProc->VAHeader, 0, sizeof(struct mrgl_alloc_header));
 	memset(&pProc->VASizelistTable, 0, 128 * sizeof(struct mrgl_sizelist_node*));
@@ -55,17 +55,16 @@ uint32_t ProcessVAAllocInit(struct Proc* pProc)
 
 	return KERNEL_OK;
 }
-
+// to prevent this from failing when tinyfin doesn't have required blocks always check amount of mrgl_big_block tinyfin have you need 2 if you allocating with non-NULL addr
 uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, addr_t* pAddr)
 {
+	kernel_assert((addr % KERNEL_PAGE_SIZE) == 0, "Unaligned address!"); 
 	//LogDebug("ProcessVAAlloc addr: 0x%08x, pages_num: %00u", addr, pages_num);
 	struct mrgl_big_block* pBlock;
 	struct mrgl_alloc_header* pHeader = &pProc->VAHeader;
 
 	// acquire lock
-	while(atomic_flag_test_and_set(&pProc->va_lock_flag) == true){
-		// wait	
-	}
+	//kernel_lock(&pProc->VMA.vma_lock_flag);
 	
 	if(addr == (addr_t)NULL){
 		struct mrgl_sizelist_node* pSizeNode;
@@ -79,7 +78,9 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 
 		mrgl_tree_remove(&pHeader->AddrHeader, &pBlock->AddrNode);
 		mrgl_sizelist_remove(&pHeader->SizeHeader, &pBlock->SizeNode);
-		*pAddr = convert_addr_from(pBlock->AddrNode.key);
+		if(pAddr != NULL){
+			*pAddr = convert_addr_from(pBlock->AddrNode.key);
+		}
 
 		if(pBlock->SizeNode.size > pages_num){
 			// split block
@@ -136,9 +137,7 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 		if(pBlock->AddrNode.key != addr){
 			struct mrgl_big_block* pNewBlock = (struct mrgl_big_block*)mrgl_tinyfin_alloc(&Core.tinyfin, sizeof(struct mrgl_big_block));
 
-			if(pNewBlock == NULL){
-				goto on_error;
-			}
+			kernel_assert(pNewBlock != NULL, "Should not be happen if you checked amount of blocks before call!");
 			
 			pNewBlock->SizeNode.size = addr - pBlock->AddrNode.key;
 			pBlock->SizeNode.size = pBlock->SizeNode.size - (addr - pBlock->AddrNode.key);
@@ -155,9 +154,7 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 		if(pages_num < pBlock->SizeNode.size){		// at this point pBlock->AddrNode.key should be always == addr, so we need just to compare sizes
 			struct mrgl_big_block* pNewBlock = (struct mrgl_big_block*)mrgl_tinyfin_alloc(&Core.tinyfin, sizeof(struct mrgl_big_block));
 
-			if(pNewBlock == NULL){
-				goto on_error;
-			}
+			kernel_assert(pNewBlock != NULL, "Should not be happen if you checked amount of blocks before call!");
 
 			pNewBlock->SizeNode.size = pBlock->SizeNode.size - pages_num;
 
@@ -174,11 +171,11 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 		mrgl_tinyfin_free(&Core.tinyfin, pBlock, sizeof(struct mrgl_big_block));
 	}
 	
-	atomic_flag_clear(&pProc->va_lock_flag);
+//	kernel_unlock(&pProc->VMA.vma_lock_flag);
 	//LogDebug("ProcessVAAlloc: allocating VA block 0x%08x, num pages: %00u", convert_addr_from(addr), pages_num);
 	return KERNEL_OK;
 on_error:
-	atomic_flag_clear(&pProc->va_lock_flag);
+//	kernel_unlock(&pProc->VMA.vma_lock_flag);
 	if(pAddr != NULL){
 		*pAddr = (addr_t)NULL;
 	}
@@ -187,16 +184,18 @@ on_error:
 
 uint32_t ProcessVAFree(struct Proc* pProc, addr_t addr, uint32_t pages_num)
 {
+	kernel_assert((addr % KERNEL_PAGE_SIZE) == 0, "Unaligned address!");
 	struct mrgl_tree_node* pAddrNode;
 	struct mrgl_big_block* pBlock;
 	struct mrgl_alloc_header* pHeader = &pProc->VAHeader;
 
+	// acquire lock
+	//kernel_lock(&pProc->VMA.vma_lock_flag);
+
 	pAddrNode = mrgl_tree_find(&pHeader->AddrHeader, convert_addr_to(addr));
 
 	pBlock = (struct mrgl_big_block*)mrgl_tinyfin_alloc(&Core.tinyfin, sizeof(struct mrgl_big_block));
-	if(pBlock == NULL){
-		return KERNEL_ERROR;
-	}
+	kernel_assert(pBlock != NULL, "Should not be happen if you checked amount of blocks before call!");
 
 	pBlock->SizeNode.size = pages_num;
 
@@ -208,9 +207,27 @@ uint32_t ProcessVAFree(struct Proc* pProc, addr_t addr, uint32_t pages_num)
 		mrgl_tree_insert(&pHeader->AddrHeader, convert_addr_to(addr), &pBlock->AddrNode);
 		mrgl_sizelist_insert(&pHeader->SizeHeader, &pBlock->SizeNode);
 	}else{
-		pBlock->AddrNode.key = convert_addr_to(addr);
-		mrgl_insert_free_block(pHeader, pAddrNode, pBlock);
-	}
+		struct mrgl_big_block* pLeft, *pRight;
 
+		pBlock->AddrNode.key = convert_addr_to(addr);
+		mrgl_find_left_and_right(pAddrNode, pBlock, &pLeft, &pRight);
+		// check for overlapping
+		if(pLeft != NULL){
+			if((pLeft->AddrNode.key + pLeft->SizeNode.size) > pBlock->AddrNode.key){
+				goto on_error;
+			}
+		}
+		if(pRight != NULL){
+			if((pBlock->AddrNode.key + pages_num) > pRight->AddrNode.key){
+				goto on_error;
+			}
+		}
+
+		mrgl_insert_free_block(pHeader, pBlock, pLeft, pRight);
+	}
+//	kernel_unlock(&pProc->VMA.vma_lock_flag);
 	return KERNEL_OK;
+on_error:
+
+	return KERNEL_ERROR;
 }
