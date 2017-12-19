@@ -2,48 +2,45 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="fs_driver" />
+		<Option title="crt0" />
 		<Option pch_mode="2" />
 		<Option compiler="clang" />
 		<Build>
 			<Target title="Debug">
-				<Option output="../../bin/fs_driver" prefix_auto="1" extension_auto="1" />
+				<Option output="bin/Debug/crt0" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="obj/Debug/" />
-				<Option type="5" />
-				<Option compiler="clang" />
+				<Option type="2" />
+				<Option compiler="llvm_clang_compiler_with_ar" />
+				<Option createDefFile="1" />
 				<Compiler>
+					<Add option="-Weverything" />
 					<Add option="-g" />
 				</Compiler>
-				<Linker>
-					<Add library="../libc/crt0/bin/Debug/libcrt0.a" />
-				</Linker>
 			</Target>
 			<Target title="Release">
-				<Option output="../../bin/fs_driver" prefix_auto="1" extension_auto="1" />
+				<Option output="bin/Release/crt0" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="obj/Release/" />
-				<Option type="5" />
+				<Option type="2" />
 				<Option compiler="clang" />
+				<Option createDefFile="1" />
 				<Compiler>
+					<Add option="-fomit-frame-pointer" />
 					<Add option="-O2" />
+					<Add option="-Weverything" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
-					<Add option="-M" />
 				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-fomit-frame-pointer" />
-			<Add option="-Wall" />
 			<Add option="-m32 -nostdlib -ffreestanding -Wno-missing-braces -DX86" />
+			<Add directory="../../../../Murloc" />
 		</Compiler>
-		<Linker>
-			<Add option="-s" />
-			<Add option="-T fs_driver.ld -melf_i386" />
-		</Linker>
-		<Unit filename="Main.c">
+		<Unit filename="crt0.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Extensions>

@@ -24,7 +24,7 @@ uint32_t SysPrintText(uint32_t* pParams)
 
 	LogCritical("Message from process: 0x%08x", pText);
 	LogCritical(pText);
-	__asm hlt;
+	//__asm hlt;
 
 	return KERNEL_OK;
 }
@@ -41,8 +41,13 @@ uint32_t SysExit(uint32_t* pParams)
 
 
 
-/* addr_t addr, uint32_t num, uint32_t flags, uint32_t* pError
+/* SysAllocPage(addr_t addr, uint32_t num, uint32_t flags, uint32_t* pError)
 	if addr == NULL, acting like nix mmap
+
+	flags:
+		MEM_RESERVE
+		MEM_GUARD_BOTTOM
+		MEM_GUARD_TOP
 
 	return:
 		non NULL if success, address of begining of memory region
@@ -58,6 +63,8 @@ uint32_t SysAllocPage(uint32_t* pParams)
 	///////////////////////
 	uint32_t ret		= 0;
 	uint32_t error		= 0;
+	addr_t guard_offset = (addr_t)NULL;
+	uint32_t guard_page_num	= 0;
 	bool vma_allocated		= false;
 
 	struct Proc* pProc = Core.pCurrProc;
@@ -89,15 +96,23 @@ uint32_t SysAllocPage(uint32_t* pParams)
 	//set_lock_flag(&pProc->va_lock_flag);
 	// check local page cache and if there isn't enough pages check also global pages pool
 	// if there is too little pages in both sources we should call all cores for pages trimming and sleep this thread until its done
+	if((flags & MEM_GUARD_BOTTOM) != 0){
+		guard_offset = KERNEL_PAGE_SIZE;
+		guard_page_num = guard_page_num + 1;
+	}
+	if((flags & MEM_GUARD_TOP) != 0){
+		guard_page_num = guard_page_num + 1;
+	}
+
 	kernel_lock(&pProc->VMA.vma_lock_flag);
-	if(ProcessVAAlloc(pProc, addr, pages_num, &addr) != KERNEL_OK){
+	if(ProcessVAAlloc(pProc, addr, pages_num + guard_page_num, &addr) != KERNEL_OK){
 		LogDebug("SysAllocPage error, ProcessVAAlloc failed.");
 		error = SYSCALL_NOT_ENOUGH_FREE_SPACE;
 		goto on_error;
 	}
 	vma_allocated = true;
 
-	ret = MapPagesToProcessVirtual(addr, pages_num, TranslateMappingFlags(flags), &pProc->VMA);
+	ret = MapPagesToProcessVirtual(addr + guard_offset, pages_num, TranslateMappingFlags(flags), &pProc->VMA);
 	if(ret != KERNEL_OK){
 		error = SYSCALL_NOT_ENOUGH_FREE_SPACE;
 		goto on_error;

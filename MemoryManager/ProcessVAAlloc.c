@@ -55,13 +55,15 @@ uint32_t ProcessVAAllocInit(struct Proc* pProc)
 
 	return KERNEL_OK;
 }
-// to prevent this from failing when tinyfin doesn't have required blocks always check amount of mrgl_big_block tinyfin have you need 2 if you allocating with non-NULL addr
+// to prevent this from failing when tinyfin doesn't have required blocks always check amount of mrgl_big_block tinyfin have, you need 2 if you allocating with non-NULL addr
 uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, addr_t* pAddr)
 {
 	kernel_assert((addr % KERNEL_PAGE_SIZE) == 0, "Unaligned address!"); 
 	//LogDebug("ProcessVAAlloc addr: 0x%08x, pages_num: %00u", addr, pages_num);
 	struct mrgl_big_block* pBlock;
 	struct mrgl_alloc_header* pHeader = &pProc->VAHeader;
+	// this is for avoiding block allocation, reusing old one when splitting
+	bool block_reuse = false;
 
 	// acquire lock
 	//kernel_lock(&pProc->VMA.vma_lock_flag);
@@ -78,7 +80,7 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 
 		mrgl_tree_remove(&pHeader->AddrHeader, &pBlock->AddrNode);
 		mrgl_sizelist_remove(&pHeader->SizeHeader, &pBlock->SizeNode);
-		if(pAddr != NULL){
+		if(pAddr != NULL){ // pAddr == NULL is an error if we have addr == NULL
 			*pAddr = convert_addr_from(pBlock->AddrNode.key);
 		}
 
@@ -102,6 +104,7 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 		struct mrgl_tree_node* pAddrNode;
 		struct mrgl_big_block* pLastBlock;
 
+		// we store addresses as number of pages
 		addr = convert_addr_to(addr);
 		
 		pAddrNode = mrgl_tree_find(&pHeader->AddrHeader, addr);
@@ -112,8 +115,8 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 		pBlock = (struct mrgl_big_block*)pAddrNode;
 		pLastBlock = pBlock;
 		// find if we have exact match
-		if(pBlock->AddrNode.key < addr){
-			while(pBlock != NULL && pBlock->AddrNode.key < addr){
+		if(pBlock->AddrNode.key <= addr){
+			while(pBlock != NULL && pBlock->AddrNode.key <= addr){
 				pLastBlock = pBlock;
 				pBlock = pBlock->pNext;
 			}
@@ -131,36 +134,39 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 			goto on_error;
 		}
 		
-		mrgl_tree_remove(&pHeader->AddrHeader, &pBlock->AddrNode);
+		// size of free block is always changes so we remove it
 		mrgl_sizelist_remove(&pHeader->SizeHeader, &pBlock->SizeNode);
 		// check if we need to split left block
+		addr_t size = pBlock->SizeNode.size; // current size
+		
 		if(pBlock->AddrNode.key != addr){
-			struct mrgl_big_block* pNewBlock = (struct mrgl_big_block*)mrgl_tinyfin_alloc(&Core.tinyfin, sizeof(struct mrgl_big_block));
+			// reusing pBlock struct for new splitted block
+			pBlock->SizeNode.size = addr - pBlock->AddrNode.key;
+			size = size - (addr - pBlock->AddrNode.key);
 
-			kernel_assert(pNewBlock != NULL, "Should not be happen if you checked amount of blocks before call!");
-			
-			pNewBlock->SizeNode.size = addr - pBlock->AddrNode.key;
-			pBlock->SizeNode.size = pBlock->SizeNode.size - (addr - pBlock->AddrNode.key);
-
-			pNewBlock->pPrev = pBlock->pPrev;
-			pNewBlock->pNext = pBlock->pNext;
-			
-			pBlock->pPrev = pNewBlock;
-
-			mrgl_tree_insert(&pHeader->AddrHeader, pBlock->AddrNode.key, &pNewBlock->AddrNode);
+			block_reuse = true;
 			mrgl_sizelist_insert(&pHeader->SizeHeader, &pNewBlock->SizeNode);
+		}else{
+			// remove only if we don't split left block
+			mrgl_tree_remove(&pHeader->AddrHeader, &pBlock->AddrNode);
 		}
 		// check if we need to split right block
-		if(pages_num < pBlock->SizeNode.size){		// at this point pBlock->AddrNode.key should be always == addr, so we need just to compare sizes
-			struct mrgl_big_block* pNewBlock = (struct mrgl_big_block*)mrgl_tinyfin_alloc(&Core.tinyfin, sizeof(struct mrgl_big_block));
+		if(pages_num < size){		// at this point pBlock->AddrNode.key should be always == addr, so we need just to compare sizes
+			if(block_reuse == false){
+				// reusing pBlock struct for new splitted block
+				pBlock->SizeNode.size = size - pages_num;
+				block_reuse = true;
+			}else{
+				struct mrgl_big_block* pNewBlock = (struct mrgl_big_block*)mrgl_tinyfin_alloc(&Core.tinyfin, sizeof(struct mrgl_big_block));
 
-			kernel_assert(pNewBlock != NULL, "Should not be happen if you checked amount of blocks before call!");
+				kernel_assert(pNewBlock != NULL, "Should not be happen if you checked amount of blocks before call!");
 
-			pNewBlock->SizeNode.size = pBlock->SizeNode.size - pages_num;
+				pNewBlock->SizeNode.size = size - pages_num;
 
-			pNewBlock->pPrev = pBlock->pPrev;
-			pNewBlock->pNext = pBlock->pNext;
-			
+				pNewBlock->pPrev = pBlock;
+				pBlock->pNext = pNewBlock;
+				pNewBlock->pNext = pBlock->pNext;
+			}
 			mrgl_tree_insert(&pHeader->AddrHeader, addr + pages_num, &pNewBlock->AddrNode);
 			mrgl_sizelist_insert(&pHeader->SizeHeader, &pNewBlock->SizeNode);
 		}
@@ -168,7 +174,10 @@ uint32_t ProcessVAAlloc(struct Proc* pProc, addr_t addr, uint32_t pages_num, add
 		if(pAddr != NULL){
 			*pAddr = convert_addr_from(addr);
 		}
-		mrgl_tinyfin_free(&Core.tinyfin, pBlock, sizeof(struct mrgl_big_block));
+		// if we don't reused pBlock, for example when pBlock have exact address and size we should free it
+		if(block_reuse == false){
+			mrgl_tinyfin_free(&Core.tinyfin, pBlock, sizeof(struct mrgl_big_block));
+		}
 	}
 	
 //	kernel_unlock(&pProc->VMA.vma_lock_flag);

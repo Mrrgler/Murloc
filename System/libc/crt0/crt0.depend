@@ -1,0 +1,44 @@
+# depslib dependency file v1.0
+1478945213 source:/media/sf_OS/Murloc/System/libc/crt0/crt0.c
+	<stdint.h>
+	<stddef.h>
+	<Kernel.h>
+	<SysCall.h>
+
+1478943829 /media/sf_OS/Murloc/SysCall.h
+
+1478905349 /media/sf_OS/Murloc/Kernel.h
+	<stdint.h>
+	<stdbool.h>
+	<stdatomic.h>
+	"x86/defines_x86.h"
+	"x86/Log_x86.h"
+	<Util/kernel_assert.h>
+	<MemoryManager/mrgl_alloc.h>
+
+1478831150 /media/sf_OS/Murloc/x86/defines_x86.h
+
+1453050492 /media/sf_OS/Murloc/x86/Log_x86.h
+
+1478508280 /media/sf_OS/Murloc/Util/kernel_assert.h
+
+1478880218 /media/sf_OS/Murloc/MemoryManager/mrgl_alloc.h
+	<stdint.h>
+	"mrgl_trees.h"
+	"mrgl_sizelist.h"
+	"mrgl_tinyfin_alloc.h"
+
+1477747451 /media/sf_OS/Murloc/MemoryManager/mrgl_trees.h
+
+1477755149 /media/sf_OS/Murloc/MemoryManager/mrgl_sizelist.h
+
+1478828133 /media/sf_OS/Murloc/MemoryManager/mrgl_tinyfin_alloc.h
+	"mrgl_alloc_config.h"
+
+1478508775 /media/sf_OS/Murloc/MemoryManager/mrgl_alloc_config.h
+	<x86/Log_x86.h>
+	<Util/kstring.h>
+	<Util/kernel_assert.h>
+
+1453810233 /media/sf_OS/Murloc/Util/kstring.h
+

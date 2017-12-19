@@ -19,6 +19,14 @@ enum SysErrors{
 	SYSCALL_ERROR = -1,
 };
 
+// SysAllocPage flags
+enum SysAllocPageFlags{
+	MEM_DEFAULT			= 0,
+	MEM_RESERVE			= 0x1,
+	MEM_GUARD_BOTTOM	= 0x2,
+	MEM_GUARD_TOP		= 0x4,
+};
+
 #ifdef KERNEL
 uint32_t SysExit(uint32_t* pParams);
 uint32_t SysAllocPage(uint32_t* pParams);

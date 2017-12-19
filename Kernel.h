@@ -55,12 +55,19 @@ struct ProcVMA{
 	uint32_t page_allocated;
 };
 
+struct ReservedMem{
+	addr_t addr;
+	uint32_t size;
+};
+
 struct Thread{
 	// platform independent
 	uint32_t tid;
 	struct Proc* pParentProc;
 
 	uint32_t state;
+	struct ReservedMem ReservedMemInfo[THREAD_MAX_RESERVED_MEM_AREA];
+	uint32_t ResMemNum;
 	// platform dependent
 	struct thread_context* pThreadCtx;
 };

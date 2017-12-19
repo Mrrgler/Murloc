@@ -16,7 +16,7 @@ addr_t GetKernelPhysAddr(addr_t virtual_addr)
 	kernel_assert(virtual_addr >= KERNEL_BASE_X86, "Error! Invalid address.");
 	kernel_assert(KPTE[(virtual_addr >> 22) - (1024 - 8)][(virtual_addr >> 12) & 0x3ff] != 0, "Error! Page not present.");
 
-	return KPTE[(virtual_addr >> 22) - (1024 - 8)][(virtual_addr >> 12) & 0x3ff] & 0xfffff000;
+	return (KPTE[(virtual_addr >> 22) - (1024 - 8)][(virtual_addr >> 12) & 0x3ff] & 0xfffff000) + (virtual_addr & 0xfff);
 }
 
 // maps continious physical address space to kernel virtual address space
