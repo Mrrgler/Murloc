@@ -1,4 +1,7 @@
 org 0x7a00
+
+disk_num equ 0x7000
+
     xor ax, ax
     mov es, ax
     mov ds, ax
@@ -15,7 +18,7 @@ org 0x7a00
 
 start:
     ;save drive number in dl to 0x7c00
-    mov [0x7c00], dl
+    mov [disk_num], dl
     ; clear screen
     mov ah, 0x00
     mov al, 0x02
@@ -74,7 +77,7 @@ load_boot:
     rep movsb
     ; read boot sector from disk to 0x7c00 address
     mov ah, 0x42
-    mov dl, [0x7c00]
+    mov dl, [disk_num]
     mov si, lba_address_packet
     int 0x13
 
@@ -141,9 +144,8 @@ part_table:
 bootloader:
     file '../../bin/bootloader.BIN'
 file_system_header:
-    db "SlowFS"
+    db 'Mrgl', 'mrgl'
     dd 0x3 ; lba pointer to kernel file
-    dd 0x0 ; offset in bytes in first sector
     dd (kernel_end - kernel + 511) / 512 ; kernel size in sectors
     dd 0x0 ; lba pointer to SlowFS driver file
     dd 0x0 ; offset in bytes in first sector

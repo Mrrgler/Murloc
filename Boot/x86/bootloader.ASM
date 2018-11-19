@@ -1,26 +1,43 @@
 org 0x7c00
 
-	;mov [0x7b00], ds
-	mov ax, cs
+BOOT_STACK_ADDR		equ 0x7b00
+E820_num			equ 0x500
+E820_buf			equ 0x504
+E820_entry_size		equ 24
+disk_num			equ 0x7000
+disk_read_buf		equ 0x7e00
+TEMP_PDE			equ 0x8000
+TEMP_PTE_LOW		equ 0x9000
+TEMP_PTE			equ 0x10000
+
+; this bootloader performs 3 tasks:
+; 1) sets up basic environment for kernel loading and booting (protected mode, temp paging etc)
+; 2) read E820 memory map so kernel will have memory info without lurking in ACPI tables and we can init kernel memory in 1 step
+; 3) load kernel image and fs driver from disk to memory and start kernel
+;
+; few additional notes about kernel image loading process
+; since BIOS functions usually work only in real mode and real mode only have 1Mb memory limit
+; and protected mode haven't memory limit but BIOS can't work in it
+; we load small kernel part from disk to buf in real mode, then jump to protected mode
+; where we copy data from buffer to 0x100000+ (1Mb+) memory area and then jump back to real mode for next data chunk
+;
+
+
+; warning this loader probably will fail with multi loading
+
+	;mov ax, cs
+
+	xor	ax, ax
 	mov ds, ax
-	xor ax, ax
 	mov es, ax
 
-	;reading fs header
-	mov ah, 0x42
-	mov si, lba_address_packet
-	;mov dl, [0x7a00] ; disk number in dl after mbr code
-	int 0x13
+	; setup temporary stack
+	;mov sp, BOOT_STACK_ADDR
 
-	;save dl
-	mov [0x7a40], dl
-
-	jc  error_reading_disk
-
-	; checking fs
-	mov eax, [0x7a00]
-	cmp eax, 0x776f6c53
-	jne error_wrong_fs
+	; enable cache by clearing CD and NW bits in cr0
+	mov eax, cr0
+	and eax, 0x9fffffff
+	mov cr0, eax
 
 	; clear screen
 	mov ax, 0x0003
@@ -31,45 +48,59 @@ org 0x7c00
 	or al, 2
 	out 0x92, al
 
-	; read memory map
-	xor ebp, ebp
-	mov di, 0x504 - 24 ; buf address to store the map
-	xor ebx, ebx
-read_map:
-	mov eax, 0xe820
-	add di, 24
-	mov ecx, 24
-	mov edx, 0x534D4150
-	inc bp	;add bp, 1
-	int 0x15
-
-	test ebx, ebx
-	jnz read_map
-
-	mov [0x500], ebp ; save map size
-
 	lgdt [GDTR]
 	; off interrupts
 	in al, 0x70
 	or al, 0x80
 	out 0x70, al
 
-load_kernel_in_buf:
+	; read memory map
+	xor ebx, ebx
+	xor ebp, ebp
+	mov di, E820_buf ; buf address to store the map
+
+read_map:
+	mov eax, 0xe820
+	mov ecx, 24
+	mov edx, 0x534D4150
+	int 0x15
+
+	add di, E820_entry_size
+	inc bp	;add bp, 1
+
+	test ebx, ebx
+	jnz read_map
+
+	mov [E820_num], ebp ; save map size
+
+	;reading fs header
+	mov ah, 0x42
+	mov si, lba_address_packet
+	mov dl, [disk_num] ; disk number in dl after mbr code
+	int 0x13
+
+	jc  error_reading_disk
+
+	; checking fs
+	mov eax, [disk_read_buf]
+	cmp eax, 0x6c67724d	   ; 'Mrgl'
+	jne error_wrong_fs
+
+	mov edi, 0x00100000 ; 1Mb
+	mov ebp, [disk_read_buf + 8] ; lba address to next read
+	mov ebx, [disk_read_buf + 12] ; reading kernel size in sectors
+load_kernel_part_in_buf:
 	sti
-	mov eax, [0x7a00 + 14] ; reading kernel size in sectors
-	mov dl, [0x7a40] ; disk number
-	mov ebx, eax
-	cmp eax, 64 ; 64KB, 512 * 128
-	jle read_buf
-	mov eax, 64
+	mov eax, ebx
+	cmp eax, 64 ; 32KB, 64 * 512
+	jbe read_buf
+	mov ax, 64
+; EBP - lba address, EBX - size, EDI - dst mem buf
 read_buf:
-	sub ebx, eax
-	mov [0x7a00 + 14], ebx ; remaining number of sectors to read
 	mov [lba_address_packet + 2], ax ; number of sectors to read
-	mov eax, 0x7e00
-	mov [lba_address_packet + 4], eax ; address of receive buffer
-	mov eax, [0x7a00 + 6] ; lba address to next read
-	mov [lba_address_packet + 8], eax ; lba address to read
+	mov [lba_address_packet + 8], ebp ; lba address to read
+
+	sub bx, ax ; remaining number of sectors to read
 
 	mov ah, 0x42
 	mov si, lba_address_packet
@@ -78,9 +109,7 @@ read_buf:
 
 	jc error_reading_disk
 	; increment lba address of next read
-	mov eax, [0x7a00 + 6]
-	add eax, 64		      ; warning this part will fail with multi loading
-	mov [0x7a00 + 6], eax
+	add ebp, 64
 
 	; protected mode
 	cli
@@ -91,48 +120,23 @@ read_buf:
 
 	jmp far 00001000b:pm_entry
 
-; real mode printing
-error_reading_disk:
-	mov bp, read_error_string
-	mov cx, read_error_string_end - read_error_string
-	jmp print_error_rm
-
-error_wrong_fs:
-	mov bp, wrong_fs_string
-	mov cx, wrong_fs_string_end - wrong_fs_string
-	jmp print_error_rm
-
-print_error_rm:
-	mov ah, 0x13
-	mov al, 1
-	mov bh, 0
-	mov bl, 0x0f
-	int 0x10
-	int 0x18
-
-
 use32
 pm_entry:
 	mov ax, 2 * 8
 	mov ds, ax
 	mov es, ax
 	;mov ss, ax
-	mov esi, 0x7e00 ; address of buffer
-	mov edi, 0x00100000 ; 1Mb
-	mov eax, [kernel_loaded_bytes]
-	add edi, eax
+	mov esi, disk_read_buf ; address of buffer
+
 	cld
 	movzx ecx, word [lba_address_packet + 2]
 	; adding size of buffer to total bytes read
 	shl ecx, 9
-	add eax, ecx
-	mov [kernel_loaded_bytes], eax
 	rep movsb
 
 	; check for remain data
-	mov eax, [0x7a00 + 14]
-	cmp eax, 0
-	je load_end
+	test bx, bx
+	jz load_end
 
 	;switching to rm for new chunk of data
 	;set rm attrib to cs
@@ -150,38 +154,30 @@ use16
 
 	xor ax, ax
 	mov ds, ax
+	mov es, ax
 	;set cs
-	jmp far 00000000b:load_kernel_in_buf
+	jmp far 00000000b:load_kernel_part_in_buf
 use32
 load_end:
-	mov ax, 2 * 8
-	mov fs, ax
-	mov ss, ax
-	mov gs, ax
-	;set up temporary stack
-	;mov esp, 0xfe400000 ; 0x7e00
-	;mov ebp, esp ; 0x7e00
-
-	; 0x10000 - PDE, 0x1x000 - PTE's
-
-	mov esi, 0x10000
-	mov dword [esi + 0xfe0], 0x11003   ; higher-half
-	mov dword [esi + 0x00], 0x12003 ; first 4mb
-	xor ecx, ecx ;mov ecx, 0
+	; map first 4Mb so this code will not insta page fault after enabling paging
+	mov dword [TEMP_PDE + 0x000], TEMP_PTE_LOW or 0x3
+	; map 4Mb starting from 0x100000 physical to 0xfe000000 virtual
+	mov dword [TEMP_PDE + 0xfe0], TEMP_PTE or 0x3	; higher-half
+	xor ecx, ecx
 	mov ebx, 0x100003
 	mov edx, 0x000003
 	mov edi, 0x1000
 fill_loop0:			  ; fill kernel pte's
-	mov dword [0x11000 + ecx * 4], ebx
-	mov dword [0x12000 + ecx * 4], edx
+	mov dword [TEMP_PTE + ecx * 4], ebx
+	mov dword [TEMP_PTE_LOW + ecx * 4], edx
 	add ebx, edi ; 0x10000 ; 4096
 	add edx, edi
 	inc ecx      ;add ecx, 1
 	cmp ecx, 1024
-	jne fill_loop0
+	jb fill_loop0
 
-
-	mov eax, esi ;0x10000
+	; enable paging
+	mov eax, TEMP_PDE
 	mov cr3, eax
 	mov eax, cr0
 	or eax, 0x80000001 ; PE = 1, PG = 1
@@ -191,6 +187,25 @@ fill_loop0:			  ; fill kernel pte's
 
 exit:
 	;jmp exit
+
+use16
+; real mode printing
+error_reading_disk:
+	mov bp, read_error_string
+	mov cx, read_error_string_end - read_error_string
+	jmp print_error_rm
+
+error_wrong_fs:
+	mov bp, wrong_fs_string
+	mov cx, wrong_fs_string_end - wrong_fs_string
+	;jmp print_error_rm
+
+print_error_rm:
+	mov ax, 0x1301
+	mov bx, 0x000f
+	xor dx, dx
+	int 0x10
+	hlt;int 0x18
 
 
 GDT:
@@ -207,11 +222,9 @@ lba_address_packet:
     db 16
     db 0
     dw 1
-    dd 0x00007a00
+    dd disk_read_buf
     dd 0x00000002
     dd 0x00000000
-kernel_loaded_bytes:
-	dd 0
 
 wrong_fs_string:
 	db 'Error. Wrong file system!'
