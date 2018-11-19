@@ -176,6 +176,10 @@ fill_loop0:			  ; fill kernel pte's
 	cmp ecx, 1024
 	jb fill_loop0
 
+	; set up 32 PM segment selector since we used only RM selector before
+	mov ax, ds
+	mov ss, ax
+
 	; enable paging
 	mov eax, TEMP_PDE
 	mov cr3, eax
